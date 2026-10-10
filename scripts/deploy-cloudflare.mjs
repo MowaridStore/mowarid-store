@@ -47,13 +47,20 @@ try {
   if (!initialized) await run(['d1', 'migrations', 'apply', 'DB', '--remote']);
   const deploymentUrl = provisioned.match(/https:\/\/[a-z0-9.-]+\.workers\.dev/gi)?.at(-1);
   if (!deploymentUrl) throw new Error('Cloudflare did not return a store URL.');
-  const statusResponse = await fetch(deploymentUrl + '/api/auth/status', {
-    redirect: 'error',
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!statusResponse.ok)
-    throw new Error('Could not verify the installation origin. Retry the build.');
-  const status = await statusResponse.json();
+  let status;
+  for (let attempt = 0; attempt < 5 && !status; attempt++) {
+    try {
+      const response = await fetch(deploymentUrl + '/api/auth/status', {
+        redirect: 'error',
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) status = await response.json();
+    } catch {
+      // A new deployment can need a moment to become reachable at the edge.
+    }
+    if (!status && attempt < 4) await new Promise((done) => setTimeout(done, 2000));
+  }
+  if (!status) throw new Error('Could not verify the installation origin. Retry the build.');
   const canonical = new URL(status.storeOrigin || deploymentUrl);
   if (canonical.protocol !== 'https:' || canonical.username || canonical.password)
     throw new Error('Invalid canonical store origin.');
