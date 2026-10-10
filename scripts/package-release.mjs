@@ -214,5 +214,5 @@ await writeFile(resolve(output, filename), archive);
 await writeFile(resolve(output, filename + '.sha256'), `${digest(archive)}  ${filename}\n`);
 console.log(`Reviewed source archive: release/${filename} (${entries.length} files)`);
 console.log(
-  'Local secrets/data excluded. Beginner installer and cloud production validation pending.',
+  'Local secrets/data excluded. Per-store Cloudflare installer included. Configure your own Turnstile widget during owner setup.',
 );

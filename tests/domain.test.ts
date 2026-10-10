@@ -146,8 +146,14 @@ describe('supplier-safe cart and financial contract', () => {
     );
   });
   it('uses Morocco business dates rather than the host timezone', () => {
-    expect(businessDate(new Date('2026-10-05T23:30:00Z'))).toBe('2026-10-06');
-    expect(businessStart('2026-10-06')).toBe('2026-10-05T23:00:00.000Z');
+    expect(businessDate(new Date('2024-10-05T23:30:00Z'))).toBe('2024-10-06');
+    expect(businessStart('2024-10-06')).toBe('2024-10-05T23:00:00.000Z');
+    expect(businessDate(new Date('2026-10-05T23:30:00Z'))).toBe('2026-10-05');
+    expect(businessStart('2026-10-06')).toBe('2026-10-06T00:00:00.000Z');
+    expect(businessDate(new Date('2026-09-20T00:59:59Z'))).toBe('2026-09-20');
+    expect(businessDate(new Date('2026-09-20T01:00:00Z'))).toBe('2026-09-20');
+    expect(businessStart('2026-09-20')).toBe('2026-09-19T23:00:00.000Z');
+    expect(businessStart('2026-09-21')).toBe('2026-09-21T00:00:00.000Z');
     expect(() => businessStart('2026-02-31')).toThrow();
   });
   it('ten products produce one shipping fee and one multi-item payload', () => {
