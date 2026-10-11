@@ -42,6 +42,7 @@
   "scripts/audit-api-isolation.mjs",
   "scripts/build.mjs",
   "scripts/deploy-cloudflare.mjs",
+  "scripts/deployment-resources.mjs",
   "scripts/deploy-live.mjs",
   "scripts/e2e-server.mjs",
   "scripts/load-test.mjs",
@@ -160,5 +161,6 @@
   "wrangler.jobs.toml",
   "wrangler.pages.toml",
   "wrangler.toml",
-  "wrangler.worker.toml"
+  "wrangler.worker.toml",
+  "tests/deployment-resources.test.ts"
 ]
