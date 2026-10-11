@@ -49,6 +49,7 @@ export function protectPrices(rows: Product[], s: Settings, maximum: number | nu
       }
     }
     p.offers = p.offers.filter((offer) => {
+      if (p.presentation?.bundleMode === false) return true;
       if (!activeOffer(offer)) return false;
       try {
         assertPricePackage(

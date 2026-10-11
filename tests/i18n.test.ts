@@ -135,6 +135,7 @@ describe('independent dashboard and storefront languages', () => {
     for (const file of [
       'src/admin/main.tsx',
       'src/admin/profit-preview.tsx',
+      'src/admin/bundles.tsx',
       'src/admin/recommendations.tsx',
       'src/admin/rich-text-editor.tsx',
       'src/admin/image-guide.tsx',

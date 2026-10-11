@@ -123,9 +123,12 @@ test('the real form appears in the draft preview and published landing, with pro
       .filter({ hasText: original.name })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
-    await page.getByLabel('تخصيص رسوم توصيل هذا المنتج').check();
+    await page.locator('.product-editor-section > summary').filter({ hasText: 'التوصيل' }).click();
+    await page.getByLabel('توصيل هذا المنتج', { exact: true }).selectOption('custom');
     await page.getByLabel('توصيل المنتج داخل الدار البيضاء — درهم').fill('10');
     await page.getByLabel('توصيل المنتج خارج الدار البيضاء — درهم').fill('60');
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page
       .getByRole('combobox', { name: 'طريقة عرض المنتج', exact: true })
       .selectOption('landing');
@@ -199,7 +202,7 @@ test('catalog photos select a product without exposing supplier IDs and invalid 
   const product = page.getByRole('button', { name: 'اختيار حقيبة يومية أنيقة', exact: true });
   await expect(product.locator('img')).toHaveJSProperty('naturalWidth', 120);
   await product.click();
-  await expect(product).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('تغيير منتج مورد · DEMO-A1', { exact: true })).toBeVisible();
   await expect(page.locator('[data-field="sku"] input')).toHaveValue('DEMO-A1');
   await expect(page.locator('[data-field="description"] textarea')).toHaveValue(
     'وصف واضح\nتفاصيل المنتج',
@@ -222,6 +225,8 @@ test('a purchase CTA reaches the order form in the script-free draft preview and
 }) => {
   await page.goto('/admin/products');
   await page.getByRole('button', { name: 'إضافة منتج +', exact: true }).click();
+  await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+  await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
   await page
     .getByRole('combobox', { name: 'طريقة عرض المنتج', exact: true })
     .selectOption('landing');
@@ -375,6 +380,8 @@ test('the owner switches between a regular product and a focused landing without
       .filter({ hasText: original.name })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page
       .getByRole('combobox', { name: 'طريقة عرض المنتج', exact: true })
       .selectOption('product');
@@ -398,6 +405,8 @@ test('the owner switches between a regular product and a focused landing without
       .filter({ hasText: original.name })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page
       .getByRole('combobox', { name: 'طريقة عرض المنتج', exact: true })
       .selectOption('landing');

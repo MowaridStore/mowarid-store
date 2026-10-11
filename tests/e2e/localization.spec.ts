@@ -380,6 +380,8 @@ test('merchant edits optional product translations and pins image landing UI ind
       .filter({ hasText: product.sku })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await expect(page.getByLabel('اسم المنتج بهذه اللغة', { exact: true })).toBeVisible();
     await page.getByLabel('لغة نسخة المنتج', { exact: true }).selectOption('fr');
     await page.getByLabel('اسم المنتج بهذه اللغة', { exact: true }).fill('Sac pour les voyages');

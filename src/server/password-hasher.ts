@@ -80,7 +80,7 @@ export class PasswordHasher {
       }
       if (typeof body.password !== 'string' || body.password.length > 128)
         return new Response(null, { status: 400 });
-      if (body.operation === 'hash' && body.password.length >= 16)
+      if (body.operation === 'hash' && body.password.length >= 8)
         return Response.json({ hash: this.hash(body.password) });
       if (
         body.operation === 'verify' &&

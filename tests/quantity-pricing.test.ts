@@ -121,3 +121,96 @@ it('does not apply a hidden higher-quantity rule after all quantity tiers are re
     ).total,
   ).toBe(120000);
 });
+it('fixed bundles accept only configured quantities across cart and direct order, retaining delivery and cents', () => {
+  const fixed = { ...p, presentation: { ...p.presentation, bundleMode: true } };
+  for (const mode of ['cart', 'direct'] as const) {
+    expect(quoteCart([line(1)], [fixed], 'Rabat', defaults, [], mode).subtotal).toBe(30000);
+    expect(quoteCart([line(2)], [fixed], 'Rabat', defaults, [], mode)).toMatchObject({
+      subtotal: 50000,
+      shipping: 0,
+      total: 50000,
+    });
+    expect(quoteCart([line(3)], [fixed], 'Rabat', defaults, [], mode)).toMatchObject({
+      subtotal: 69000,
+      shipping: 3000,
+      total: 72000,
+    });
+    for (const quantity of [4, 5, 100])
+      expect(() => quoteCart([line(quantity)], [fixed], 'Rabat', defaults, [], mode)).toThrow(
+        'اختر إحدى الباقات',
+      );
+  }
+  expect(publicProduct(fixed)).not.toHaveProperty('fulfillment');
+  expect(publicProduct(fixed).quantityPricing).toBeUndefined();
+  const withoutBundles = { ...fixed, presentation: { ...fixed.presentation, bundleMode: false } };
+  expect(quoteCart([line(2)], [withoutBundles], 'Rabat', defaults)).toMatchObject({
+    subtotal: 60000,
+    shipping: 3000,
+  });
+});
+it('fixed bundle expiration, disablement and stock are checked by the server, including a stale explicit offer', () => {
+  vi.useFakeTimers();
+  const deadline = '2026-10-12T12:00:00.000Z';
+  const fixed = {
+    ...p,
+    presentation: { bundleMode: true },
+    offers: [{ ...p.offers[0], endsAt: deadline }],
+  };
+  vi.setSystemTime(new Date('2026-10-12T11:59:59.999Z'));
+  expect(quoteCart([line(2)], [fixed], 'Rabat', defaults).total).toBe(50000);
+  for (const at of [deadline, '2026-10-12T12:00:00.001Z']) {
+    vi.setSystemTime(new Date(at));
+    for (const id of ['', 'two'])
+      expect(() => quoteCart([line(2, id)], [fixed], 'Rabat', defaults)).toThrow(
+        'اختر إحدى الباقات',
+      );
+  }
+  expect(() =>
+    quoteCart(
+      [line(2)],
+      [{ ...fixed, offers: [{ ...fixed.offers[0], endsAt: null, enabled: false }] }],
+      'Rabat',
+      defaults,
+    ),
+  ).toThrow();
+  expect(() =>
+    quoteCart([line(3)], [{ ...fixed, offers: p.offers, stock: 2 }], 'Rabat', defaults),
+  ).toThrow();
+});
+it('fixed bundle safety permits break-even, refuses one-cent loss, and rechecks official cost increases', () => {
+  const fixed = {
+    ...p,
+    price: 23500,
+    fulfillment: 17500,
+    presentation: { bundleMode: true },
+    offers: [{ ...p.offers[0], total: 38000 }],
+  };
+  const s = { ...defaults, shippingCasa: 3000, shippingOther: 3000, cartFreeShippingThreshold: 0 };
+  expect(() =>
+    assertPublishedPrices(fixed.price, fixed.offers, fixed.fulfillment, s, fixed, 3000),
+  ).not.toThrow();
+  expect(() =>
+    assertPublishedPrices(
+      fixed.price,
+      [{ ...fixed.offers[0], total: 37999 }],
+      fixed.fulfillment,
+      s,
+      fixed,
+      3000,
+    ),
+  ).toThrow();
+  expect(() => assertPublishedPrices(fixed.price, fixed.offers, 17501, s, fixed, 3000)).toThrow();
+  expect(() =>
+    assertPublishedPrices(fixed.price, fixed.offers, fixed.fulfillment, s, fixed, 4000),
+  ).toThrow();
+  expect(() =>
+    assertPublishedPrices(
+      20500,
+      [],
+      17500,
+      s,
+      { ...fixed, presentation: { ...fixed.presentation, freeShipping: true } },
+      3000,
+    ),
+  ).not.toThrow();
+});

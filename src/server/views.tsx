@@ -712,11 +712,11 @@ function OfferChoices({ p, s }: { p: Product; s: Settings }) {
   return (
     <>
       <div class="offer-cards" data-offer-choices>
-        {(p.offers.length
+        {(p.offers.length || p.presentation?.bundleMode
           ? [
               {
                 id: '',
-                label: t('السعر الحالي للمنتج'),
+                label: p.presentation?.bundleLabel || t('السعر الحالي للمنتج'),
                 quantity: 1,
                 total: p.price,
                 freeShipping: !!p.presentation?.freeShipping,
@@ -724,19 +724,21 @@ function OfferChoices({ p, s }: { p: Product; s: Settings }) {
               ...p.offers,
             ]
           : []
-        ).map((o, i) => (
-          <label class="offer-card">
-            <input type="radio" name="offer" value={o.id} checked={i === 0} />
-            <span>
-              <b>{o.label}</b>
-              <small>
-                {t('الكمية')}: {o.quantity}
-                {o.freeShipping ? t('· توصيل مجاني') : ''}
-              </small>
-            </span>
-            <strong>{money(o.total)}</strong>
-          </label>
-        ))}
+        )
+          .filter((o) => !p.presentation?.bundleMode || o.quantity <= p.stock)
+          .map((o, i) => (
+            <label class="offer-card">
+              <input type="radio" name="offer" value={o.id} checked={i === 0} />
+              <span>
+                <b>{o.label || t('الكمية') + ': ' + o.quantity}</b>
+                <small>
+                  {t('الكمية')}: {o.quantity}
+                  {o.freeShipping ? t('· توصيل مجاني') : ''}
+                </small>
+              </span>
+              <strong>{money(o.total)}</strong>
+            </label>
+          ))}
       </div>
       <p class="quantity-tail-note" data-quantity-tail hidden={!tail}>
         {tail &&
@@ -911,14 +913,18 @@ export function ProductPage({
           {originalPrice > p.price && p.presentation?.promotion?.endsAt && (
             <PromotionCard p={p} s={s} originalPrice={originalPrice} />
           )}
-          {!!p.offers.length && (
+          {(!!p.offers.length || !!p.presentation?.bundleMode) && (
             <div class="product-offers">
               <h2>{t('اختر ما يناسبك')}</h2>
               <OfferChoices p={p} s={s} />
             </div>
           )}
           <div class="product-buy" id="product-buy">
-            <div class="product-quantity" data-product-quantity>
+            <div
+              class="product-quantity"
+              data-product-quantity
+              hidden={!!p.presentation?.bundleMode}
+            >
               <span>{t('الكمية')}</span>
               <div class="quantity-stepper">
                 <button type="button" data-product-step="-1" aria-label={t('تقليل كمية المنتج')}>
@@ -1109,33 +1115,7 @@ export function OrderForm({
       </div>
       {p && !direct && (
         <div class="offer-options">
-          <div class="offer-cards" data-offer-choices>
-            {(p.offers.length
-              ? [
-                  {
-                    id: '',
-                    label: t('السعر الحالي للمنتج'),
-                    quantity: 1,
-                    total: p.price,
-                    freeShipping: !!p.presentation?.freeShipping,
-                  },
-                  ...p.offers,
-                ]
-              : []
-            ).map((o, i) => (
-              <label class="offer-card">
-                <input type="radio" name="offer" value={o.id} checked={i === 0} />
-                <span>
-                  <b>{o.label}</b>
-                  <small>
-                    {t('الكمية')}: {o.quantity}
-                    {o.freeShipping ? t('· شحن مجاني') : ''}
-                  </small>
-                </span>
-                <strong>{money(o.total)}</strong>
-              </label>
-            ))}
-          </div>
+          <OfferChoices p={p} s={s} />
           {p.pageMode !== 'landing' && !direct && (
             <>
               <button

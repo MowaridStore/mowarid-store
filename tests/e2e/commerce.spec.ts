@@ -179,51 +179,65 @@ test('analytics has only the three campaign inputs and no conversion percentage'
   await expect(page.getByLabel('اسم الحملة (اختياري)', { exact: true })).toBeVisible();
 });
 
-test('an open direct checkout requires review when its selected quantity discount expires', async ({
-  page,
-}) => {
-  const login = await page.request.post('/api/auth/login', {
-    headers: { Origin: origin, 'CF-Connecting-IP': '198.18.31.6' },
-    data: { email: 'owner@example.test', password: 'local-admin-test-password-2026' },
+for (const bundleMode of [false, true])
+  test(`an open ${bundleMode ? 'fixed bundle' : 'legacy tier'} checkout requires review when its selected quantity discount expires`, async ({
+    page,
+  }) => {
+    const login = await page.request.post('/api/auth/login', {
+      headers: { Origin: origin, 'CF-Connecting-IP': '198.18.31.6' },
+      data: { email: 'owner@example.test', password: 'local-admin-test-password-2026' },
+    });
+    expect(login.ok()).toBe(true);
+    const headers = { Origin: origin, 'X-CSRF-Token': (await login.json()).csrf };
+    const original = (await (await page.request.get('/api/admin/products')).json()).find(
+      (p: any) => p.id === 'demo-bag',
+    );
+    try {
+      const offer = {
+        id: 'expires-in-tab',
+        label: 'عرض كمية مؤقت',
+        quantity: 2,
+        total: 20000,
+        freeShipping: false,
+        enabled: true,
+        endsAt: new Date(Date.now() + 6000).toISOString(),
+      };
+      expect(
+        (
+          await page.request.put('/api/admin/products/' + original.id, {
+            headers,
+            data: {
+              ...original,
+              offers: [offer],
+              presentation: {
+                ...original.presentation,
+                ...(bundleMode ? { bundleMode: true } : {}),
+              },
+            },
+          })
+        ).ok(),
+      ).toBe(true);
+      await page.goto('/checkout?product=demo-bag&offer=' + offer.id);
+      await expect(page.locator('input[name=offer]')).toHaveCount(0);
+      if (bundleMode) await expect(page.locator('[data-bundle-quantity]')).toHaveValue('2');
+      else await expect(page.locator('#checkout-items .quantity-controls span')).toHaveText('2');
+      await expect(
+        page.getByRole('button', { name: 'مراجعة بيانات العرض وتحديثها', exact: true }),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('input[name=offer]')).toHaveCount(0);
+      if (bundleMode) await expect(page.locator('[data-bundle-quantity]')).toHaveValue('2');
+      else await expect(page.locator('#checkout-items .quantity-controls span')).toHaveText('2');
+      await page.getByRole('button', { name: 'مراجعة بيانات العرض وتحديثها', exact: true }).click();
+      await expect(page.locator('input[name=offer][value="' + offer.id + '"]')).toHaveCount(0);
+      await expect(page.locator('#checkout-error')).toHaveText('');
+      if (bundleMode) {
+        await expect(page.locator('[data-bundle-quantity]')).toHaveValue('1');
+        await expect(page.locator('#subtotal')).toContainText(String(original.price / 100));
+      }
+    } finally {
+      await page.request.put('/api/admin/products/' + original.id, { headers, data: original });
+    }
   });
-  expect(login.ok()).toBe(true);
-  const headers = { Origin: origin, 'X-CSRF-Token': (await login.json()).csrf };
-  const original = (await (await page.request.get('/api/admin/products')).json()).find(
-    (p: any) => p.id === 'demo-bag',
-  );
-  try {
-    const offer = {
-      id: 'expires-in-tab',
-      label: 'عرض كمية مؤقت',
-      quantity: 2,
-      total: 20000,
-      freeShipping: false,
-      enabled: true,
-      endsAt: new Date(Date.now() + 6000).toISOString(),
-    };
-    expect(
-      (
-        await page.request.put('/api/admin/products/' + original.id, {
-          headers,
-          data: { ...original, offers: [offer] },
-        })
-      ).ok(),
-    ).toBe(true);
-    await page.goto('/checkout?product=demo-bag&offer=' + offer.id);
-    await expect(page.locator('input[name=offer]')).toHaveCount(0);
-    await expect(page.locator('#checkout-items .quantity-controls span')).toHaveText('2');
-    await expect(
-      page.getByRole('button', { name: 'مراجعة بيانات العرض وتحديثها', exact: true }),
-    ).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('input[name=offer]')).toHaveCount(0);
-    await expect(page.locator('#checkout-items .quantity-controls span')).toHaveText('2');
-    await page.getByRole('button', { name: 'مراجعة بيانات العرض وتحديثها', exact: true }).click();
-    await expect(page.locator('input[name=offer][value="' + offer.id + '"]')).toHaveCount(0);
-    await expect(page.locator('#checkout-error')).toHaveText('');
-  } finally {
-    await page.request.put('/api/admin/products/' + original.id, { headers, data: original });
-  }
-});
 
 test('choosing a quantity offer on the product page carries its price and free delivery into checkout without repeating the selector', async ({
   page,
@@ -289,7 +303,7 @@ test('choosing a quantity offer on the product page carries its price and free d
   }
 });
 
-test('the price panel uses separate customer and supplier delivery, shows a minimum, and stays next to offers', async ({
+test('the editor has five sections, compact profit, bundles next to prices and actionable loss feedback', async ({
   page,
 }) => {
   const login = await page.request.post('/api/auth/login', {
@@ -305,14 +319,13 @@ test('the price panel uses separate customer and supplier delivery, shows a mini
     .click();
   const panel = page
     .locator('.product-editor-section')
-    .filter({ has: page.locator('summary').getByText('السعر والعرض المؤقت', { exact: true }) });
-  await expect(panel.locator('xpath=following-sibling::details[1]/summary')).toHaveText('العروض');
+    .filter({ has: page.locator('summary').getByText('السعر والباقات', { exact: true }) });
+  await expect(page.locator('.product-editor-section')).toHaveCount(5);
+  await expect(panel.locator('.bundles-editor')).toBeVisible();
   await page.getByLabel('السعر الأصلي بالدرهم', { exact: true }).fill('295');
-  const item = panel.locator('.profit-row').first();
-  await expect(item).toContainText('سعر المنتجات للزبون دون توصيل');
-  await expect(item).toContainText('أقل سعر مسموح للعرض دون توصيل');
-  await expect(item.locator('.profit-scenario').first()).toContainText('توصيل يدفعه الزبون');
-  await expect(item.locator('.profit-scenario').first()).toContainText('توصيل مستحق لمورد');
+  await expect(panel.locator('.profit-line').first()).toContainText('ربحك الصافي التقريبي');
+  await expect(page.locator('.profit-scenario,.profit-row')).toHaveCount(0);
+  await expect(page.getByText('الحد الأقصى للكمية', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'إضافة عرض مكمل', exact: true })).toHaveCount(0);
   await expect(page.getByText('الإعلان والمرتجعات غير مشمولين', { exact: false })).toHaveCount(0);
   await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();

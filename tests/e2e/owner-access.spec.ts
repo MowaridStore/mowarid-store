@@ -22,7 +22,7 @@ test('owner uses password and recovery file without biometric controls, with old
   ).toHaveCount(0);
   await page.getByLabel('كلمة المرور الحالية', { exact: true }).fill(password);
   await page
-    .getByLabel('كلمة المرور الجديدة (16 حرفًا على الأقل)', { exact: true })
+    .getByLabel('كلمة المرور الجديدة (8 أحرف على الأقل)', { exact: true })
     .fill(password + '-reset');
   await page.getByRole('button', { name: 'تغيير كلمة المرور', exact: true }).click();
   await expect(page.getByText('ملف الاسترداد الجديد', { exact: true })).toBeVisible();

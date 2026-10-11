@@ -148,6 +148,8 @@ export const productSchema = z.object({
   presentation: z
     .object({
       freeShipping: z.boolean().optional(),
+      bundleMode: z.boolean().optional(),
+      bundleLabel: text(120).optional(),
       quantityPricing: z
         .object({
           unitPrice: z.number().int().positive().max(100000000),

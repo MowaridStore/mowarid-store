@@ -80,12 +80,14 @@ test('supplier text or HTML can be imported and formatted descriptions are safe 
   );
   try {
     await editBag(page);
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page.getByLabel('نوع الوصف المستورد من مورد', { exact: true }).selectOption('text');
     await page.getByRole('button', { name: 'اختيار حقيبة يومية أنيقة', exact: true }).click();
     await expect(page.getByLabel('الوصف', { exact: true })).toHaveValue(
       'تفاصيل منسقة\nمحتوى مهم\nميزة عملية',
     );
-    await expect(page.getByLabel('كلمات مفتاحية للبحث', { exact: true })).toHaveValue(
+    await expect(page.getByLabel('كلمات مفتاحية (اختياري)', { exact: true })).toHaveValue(
       'sac, voyage',
     );
     await expect(page.locator('.catalog-grid').first()).not.toContainText('997');
@@ -134,6 +136,8 @@ test('a gallery thumbnail becomes the main image without losing the previous pho
       ).ok(),
     ).toBe(true);
     await editBag(page);
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     const photo = page
       .locator('.gallery-editor-row')
       .filter({ has: page.locator('img[src="/demo/notebook.svg"]') });
@@ -171,6 +175,8 @@ test('manual recommendations show catalog photos and import a new product only a
   );
   try {
     await editBag(page);
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page.getByLabel('طريقة اختيار المنتجات المقترحة', { exact: true }).selectOption('manual');
     const card = page.getByRole('button', { name: 'اقتراح حافظة للبطاقات', exact: true });
     await expect(card.locator('img')).toHaveJSProperty('naturalWidth', 128);

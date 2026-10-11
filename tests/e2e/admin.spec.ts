@@ -36,6 +36,8 @@ test('owner login, unpublished landing editor preview, and responsive pages', as
   await page.getByRole('button', { name: 'فتح قائمة الإدارة', exact: true }).click();
   await page.getByRole('link', { name: 'المنتجات والصفحات', exact: true }).click();
   await page.getByRole('button', { name: 'تعديل', exact: true }).first().click();
+  await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+  await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
   await page
     .getByRole('combobox', { name: 'طريقة عرض المنتج', exact: true })
     .selectOption('landing');

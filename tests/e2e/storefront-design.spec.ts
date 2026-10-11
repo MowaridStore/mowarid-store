@@ -19,7 +19,13 @@ test('an unlisted landing and a regular gallery share one product, and mobile ca
       (
         await page.request.put('/api/admin/products/' + original.id, {
           headers,
-          data: { ...original, gallery: ['/demo/notebook.svg'], pageMode: 'landing' },
+          data: {
+            ...original,
+            offers: [],
+            presentation: { ...original.presentation, bundleMode: false },
+            gallery: ['/demo/notebook.svg'],
+            pageMode: 'landing',
+          },
         })
       ).ok(),
     ).toBe(true);
@@ -29,6 +35,8 @@ test('an unlisted landing and a regular gallery share one product, and mobile ca
       .filter({ hasText: original.name })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page.getByLabel('إظهار في واجهة المتجر', { exact: true }).uncheck();
     await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
     await expect(page.locator('tbody tr').filter({ hasText: original.name })).toContainText(
@@ -167,7 +175,7 @@ test('keyword and full-description search work from both the live search box and
       .filter({ hasText: original.name })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
-    await page.getByLabel('كلمات مفتاحية للبحث', { exact: true }).fill('شنطة، sac، voyage');
+    await page.getByLabel('كلمات مفتاحية (اختياري)', { exact: true }).fill('شنطة، sac، voyage');
     await page
       .locator('[data-field="description"] textarea')
       .fill('تفاصيل المنتج. '.repeat(80) + ' كلمةنادرةللبحث');

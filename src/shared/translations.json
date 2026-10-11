@@ -4790,5 +4790,145 @@
   "سعر الكميات الأكبر تغير. راجع الإجمالي الجديد.": {
     "en": "The price for larger quantities changed. Review the new total.",
     "fr": "Le prix des quantités supérieures a changé. Vérifiez le nouveau total."
+  },
+  "8 أحرف على الأقل، تتضمن حروفًا وأرقامًا.": {
+    "fr": "Au moins 8 caractères, avec des lettres et des chiffres.",
+    "en": "At least 8 characters, including letters and numbers."
+  },
+  "تغيير منتج مورد": {
+    "fr": "Changer le produit Mowarid",
+    "en": "Change Mowarid product"
+  },
+  "اختيار منتج من مورد": {
+    "fr": "Choisir un produit Mowarid",
+    "en": "Choose a Mowarid product"
+  },
+  "رابط صورة خارجي (اختياري)": {
+    "fr": "Lien d’image externe (facultatif)",
+    "en": "External image URL (optional)"
+  },
+  "كلمات مفتاحية (اختياري)": {
+    "fr": "Mots-clés (facultatif)",
+    "en": "Keywords (optional)"
+  },
+  "السعر والباقات": {
+    "fr": "Prix et packs",
+    "en": "Price and bundles"
+  },
+  "توصيل هذا المنتج": {
+    "fr": "Livraison de ce produit",
+    "en": "Delivery for this product"
+  },
+  "حسب إعدادات المتجر": {
+    "fr": "Selon les réglages de la boutique",
+    "en": "Use store settings"
+  },
+  "مجاني لهذا المنتج وباقاته": {
+    "fr": "Gratuite pour ce produit et ses packs",
+    "en": "Free for this product and its bundles"
+  },
+  "رسوم خاصة لهذا المنتج": {
+    "fr": "Tarifs propres à ce produit",
+    "en": "Custom fees for this product"
+  },
+  "الباقات تتبع توصيل المنتج، إلا إذا اخترت التوصيل المجاني لباقة محددة. التوصيل المجاني للمنتج يشمل جميع باقاته.": {
+    "fr": "Les packs suivent la livraison du produit, sauf si vous offrez la livraison pour un pack précis. La livraison gratuite du produit s’applique à tous ses packs.",
+    "en": "Bundles follow product delivery settings unless you offer free delivery for a specific bundle. Free product delivery applies to all its bundles."
+  },
+  "إعدادات إضافية": {
+    "fr": "Réglages supplémentaires",
+    "en": "More settings"
+  },
+  "صفحة المنتج ولغة الإعلان": {
+    "fr": "Page produit et langue publicitaire",
+    "en": "Product page and advertising language"
+  },
+  "تخصيص صفحة الهبوط واستمارة الطلب": {
+    "fr": "Personnaliser la page de vente et le formulaire de commande",
+    "en": "Customize landing page and order form"
+  },
+  "كلمة المرور الجديدة (8 أحرف على الأقل)": {
+    "fr": "Nouveau mot de passe (8 caractères minimum)",
+    "en": "New password (at least 8 characters)"
+  },
+  "بيع المنتج بالباقات": {
+    "fr": "Vendre le produit en packs",
+    "en": "Sell this product in bundles"
+  },
+  "الزبون يختار إحدى الباقات فقط. المنتج الواحد وباقتان إضافيتان كحد أقصى.": {
+    "fr": "Le client choisit uniquement un pack : le produit seul et deux packs supplémentaires au maximum.",
+    "en": "Customers choose a bundle only: one product and up to two additional bundles."
+  },
+  "بدون باقات، يختار الزبون الكمية التي يريدها بالسعر الحالي للمنتج.": {
+    "fr": "Sans packs, le client choisit sa quantité au prix actuel du produit.",
+    "en": "Without bundles, customers choose any quantity at the current product price."
+  },
+  "المنتج الواحد": {
+    "fr": "Un produit",
+    "en": "One product"
+  },
+  "عبارة الباقة (اختياري)": {
+    "fr": "Libellé du pack (facultatif)",
+    "en": "Bundle label (optional)"
+  },
+  "باقات المنتج": {
+    "fr": "Packs du produit",
+    "en": "Product bundles"
+  },
+  "سعر الباقة بالدرهم": {
+    "fr": "Prix total du pack en dirhams",
+    "en": "Bundle price in dirhams"
+  },
+  "باقة التوفير": {
+    "fr": "Pack économique",
+    "en": "Value bundle"
+  },
+  "حسب إعدادات المنتج": {
+    "fr": "Selon les réglages du produit",
+    "en": "Use product settings"
+  },
+  "مجاني لهذه الباقة": {
+    "fr": "Gratuite pour ce pack",
+    "en": "Free for this bundle"
+  },
+  "خيارات الباقة": {
+    "fr": "Options du pack",
+    "en": "Bundle options"
+  },
+  "حذف الباقة": {
+    "fr": "Supprimer le pack",
+    "en": "Delete bundle"
+  },
+  "إضافة باقة": {
+    "fr": "Ajouter un pack",
+    "en": "Add bundle"
+  },
+  "لديك عروض قديمة متعددة. احتفظ بباقتين إضافيتين قبل حفظ وضع الباقات.": {
+    "fr": "Vous avez plusieurs anciennes offres. Gardez au maximum deux packs supplémentaires avant d’enregistrer ce mode.",
+    "en": "You have several older offers. Keep up to two extra bundles before saving bundle mode."
+  },
+  "الربح التقريبي": {
+    "fr": "Bénéfice estimé",
+    "en": "Estimated profit"
+  },
+  "ربحك الصافي التقريبي": {
+    "fr": "Votre bénéfice net estimé",
+    "en": "Your estimated net profit"
+  },
+  "لا يوجد ربح": {
+    "fr": "Aucun bénéfice",
+    "en": "No profit"
+  },
+  "بهذا السعر قد تخسر. ارفع السعر أو رسوم التوصيل قبل التفعيل.": {
+    "fr": "Ce prix peut entraîner une perte. Augmentez le prix ou les frais de livraison avant d’activer la vente.",
+    "en": "This price could cause a loss. Increase the price or delivery fee before enabling sales."
+  },
+  "حدّث بيانات مورد قبل تفعيل البيع.": {
+    "fr": "Actualisez les données Mowarid avant d’activer la vente.",
+    "en": "Refresh Mowarid data before enabling sales."
+  },
+  "يمكنك إضافة باقتين بجانب المنتج الواحد، بكمية لا تقل عن 2.": {
+    "fr": "Vous pouvez ajouter deux packs au produit seul, avec une quantité minimale de 2.",
+    "en": "You can add two bundles alongside the single product, with a quantity of at least 2."
   }
 }

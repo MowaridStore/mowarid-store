@@ -14,7 +14,13 @@ export function activePromotion(p: Product, at = Date.now()) {
 export const QUANTITY_TAIL_ID = 'quantity:more';
 export function tailPricing(p: Product, at = Date.now()): PublicQuantityPricing | undefined {
   const rule = p.presentation?.quantityPricing;
-  if (!rule || !activeOffer(rule, at) || !p.offers.some((o) => o.enabled !== false)) return;
+  if (
+    p.presentation?.bundleMode !== undefined ||
+    !rule ||
+    !activeOffer(rule, at) ||
+    !p.offers.some((o) => o.enabled !== false)
+  )
+    return;
   const largest = Math.max(
     1,
     ...p.offers.filter((o) => o.enabled !== false).map((o) => o.quantity),
@@ -57,7 +63,7 @@ export function pricedProduct(
     freeShipping: !!p.presentation?.freeShipping,
     quantityPricing: tailPricing(p, at),
     offers: p.offers
-      .filter((o) => activeOffer(o, at))
+      .filter((o) => p.presentation?.bundleMode !== false && activeOffer(o, at))
       .map((o) => (p.presentation?.freeShipping ? { ...o, freeShipping: true } : o)),
     price: active ? p.presentation!.promotion!.price : p.price,
     revision: p.presentation?.promotion
@@ -89,4 +95,10 @@ export function promotionRemaining(
     end = Date.parse(endsAt);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
   return Math.max(0, Math.min(1, (end - at) / (end - start)));
+}
+
+export function bundleChoices(p: Pick<PublicProduct, 'offers' | 'stock'>) {
+  return [1, ...p.offers.map((o) => o.quantity)]
+    .filter((q, i, values) => q <= p.stock && values.indexOf(q) === i)
+    .sort((a, b) => a - b);
 }

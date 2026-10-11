@@ -3,6 +3,8 @@ export type ProductDescription = { descriptionFormat?: 'text' | 'html'; descript
 export type ProductPresentation = ProductDescription & {
   freeShipping?: boolean;
   quantityPricing?: QuantityPricing;
+  bundleMode?: boolean;
+  bundleLabel?: string;
   /** Retired persisted data; ignored by pricing and never exposed to visitors. */
   crossSells?: CrossSell[];
   promotion?: { price: number; endsAt?: string | null; startsAt?: string | null } | null;
@@ -168,6 +170,8 @@ export type PublicProduct = Pick<
 > & {
   freeShipping?: boolean;
   quantityPricing?: PublicQuantityPricing;
+  bundleMode?: boolean;
+  bundleLabel?: string;
   originalPrice?: number;
   priceEndsAt?: string | null;
   priceStartsAt?: string | null;
@@ -187,6 +191,8 @@ export function publicProduct(raw: Product): PublicProduct {
     supplier: p.supplier,
     verified: p.verified,
     offers: p.offers,
+    bundleMode: !!p.presentation?.bundleMode,
+    bundleLabel: p.presentation?.bundleLabel || '',
     ...(p.quantityPricing ? { quantityPricing: p.quantityPricing } : {}),
     freeShipping: !!p.presentation?.freeShipping,
     revision: p.revision,

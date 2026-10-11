@@ -1,5 +1,6 @@
 import {
   cartOffers,
+  bundleChoices,
   promotionClock,
   promotionRemaining,
   quantityPrice,
@@ -287,6 +288,15 @@ function add(id: string, offerId = '', increment = false, quantity = 1) {
     const old = cart.find((l) => l.sku === p.sku);
     const offered = cartOffers(p).find((o) => o.id === offerId);
     const requested = offered?.quantity ?? quantity;
+    if (p.bundleMode && increment && old) {
+      toast(t('المنتج موجود في السلة. اختر الباقة من السلة.'));
+      $<HTMLDialogElement>('#cart-dialog')?.showModal();
+      return false;
+    }
+    if (p.bundleMode && !bundleChoices(p).includes(requested)) {
+      toast(t('اختر إحدى الباقات المتاحة لهذا المنتج.'));
+      return false;
+    }
     const l = chosen(p, '', increment && old ? old.quantity + requested : requested);
     if (!Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > Math.min(p.stock, 100)) {
       toast(t('الكمية المطلوبة غير متوفرة. جرّب كمية أقل.'));
@@ -305,11 +315,27 @@ function add(id: string, offerId = '', increment = false, quantity = 1) {
     return false;
   }
 }
+function bundleControls(l: LocalCartLine, direct: boolean) {
+  const p = config.products.find((p) => p.id === l.productId);
+  if (!p?.bundleMode) return '';
+  const values = bundleChoices(p),
+    options = values.map((quantity) => {
+      const priced = quantityPrice(p, quantity);
+      const label =
+        priced.label || (quantity === 1 ? p.bundleLabel : '') || t('الكمية') + ': ' + quantity;
+      return `<option value="${quantity}" ${quantity === l.quantity ? 'selected' : ''}>${escape(label)} · ${money(priced.total)}</option>`;
+    });
+  if (!values.includes(l.quantity))
+    options.unshift(
+      `<option disabled selected value="${l.quantity}">${escape(t('راجع الباقات المتاحة'))}</option>`,
+    );
+  return `<label class="cart-bundle-selector">${escape(t('الباقة'))}<select data-bundle-quantity="${escape(l.sku)}" data-bundle-direct="${direct}">${options.join('')}</select></label>`;
+}
 function linesHtml(lines: LocalCartLine[], editable = true, direct = false) {
   return lines
     .map(
       (l) =>
-        `<div class="cart-line">${l.image ? `<img class="cart-line-image" src="${escape(l.image)}" alt="" width="64" height="64" loading="lazy">` : ''}<div class="cart-line-info"><b>${escape((reviewProducts || config.products).find((product) => product.id === l.productId)?.name || l.name)}</b><small>${l.offerLabel ? escape(l.offerLabel) + ' · ' : ''}${money(l.offerId && l.subtotal !== undefined ? l.subtotal : l.unitPrice * l.quantity)}</small><div class="quantity-controls">${!editable || l.offerId.startsWith('checkout:') ? `<span>${escape(t('الكمية'))}: ${l.quantity}</span>` : `<button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="-1" aria-label="${escape(t('تقليل الكمية'))}">−</button><span>${l.quantity}</span><button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="1" aria-label="${escape(t('زيادة الكمية'))}">+</button>`}</div></div>${editable && !direct ? `<button type="button" class="remove-line" data-remove="${escape(l.sku)}" aria-label="${escape(t('حذف المنتج'))}">×</button>` : ''}</div>`,
+        `<div class="cart-line">${l.image ? `<img class="cart-line-image" src="${escape(l.image)}" alt="" width="64" height="64" loading="lazy">` : ''}<div class="cart-line-info"><b>${escape((reviewProducts || config.products).find((product) => product.id === l.productId)?.name || l.name)}</b><small>${l.offerLabel ? escape(l.offerLabel) + ' · ' : ''}${money(l.offerId && l.subtotal !== undefined ? l.subtotal : l.unitPrice * l.quantity)}</small><div class="quantity-controls">${editable && config.products.find((p) => p.id === l.productId)?.bundleMode ? bundleControls(l, direct) : !editable || l.offerId.startsWith('checkout:') ? `<span>${escape(t('الكمية'))}: ${l.quantity}</span>` : `<button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="-1" aria-label="${escape(t('تقليل الكمية'))}">−</button><span>${l.quantity}</span><button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="1" aria-label="${escape(t('زيادة الكمية'))}">+</button>`}</div></div>${editable && !direct ? `<button type="button" class="remove-line" data-remove="${escape(l.sku)}" aria-label="${escape(t('حذف المنتج'))}">×</button>` : ''}</div>`,
     )
     .join('');
 }
@@ -475,27 +501,29 @@ function renderCheckout(html: string) {
     conflict = !!p && !!cart.length && p.supplier !== cart[0].supplier;
   if (p) {
     const choices = $('[data-offer-choices]');
-    const signature = JSON.stringify([p.price, p.offers]);
+    const signature = JSON.stringify([p.price, p.offers, p.bundleMode, p.bundleLabel, p.stock]);
     if (choices && choices.dataset.signature !== signature) {
       const selected = currentOfferId();
       const chosenOffer = p.offers.some((offer) => offer.id === selected) ? selected : '';
-      choices.innerHTML = p.offers.length
-        ? [
-            {
-              id: '',
-              label: t('السعر الحالي للمنتج'),
-              quantity: 1,
-              total: p.price,
-              freeShipping: !!p.freeShipping,
-            },
-            ...p.offers,
-          ]
-            .map(
-              (offer) =>
-                `<label class="offer-card"><input type="radio" name="offer" value="${escape(offer.id)}" ${offer.id === chosenOffer ? 'checked' : ''}><span><b>${escape(offer.label)}</b><small>${escape(t('الكمية'))}: ${offer.quantity} ${offer.freeShipping ? escape(t('· شحن مجاني')) : ''}</small></span><strong>${money(offer.total)}</strong></label>`,
-            )
-            .join('')
-        : '';
+      choices.innerHTML =
+        p.offers.length || p.bundleMode
+          ? [
+              {
+                id: '',
+                label: p.bundleLabel || t('السعر الحالي للمنتج'),
+                quantity: 1,
+                total: p.price,
+                freeShipping: !!p.freeShipping,
+              },
+              ...p.offers,
+            ]
+              .filter((o) => !p.bundleMode || o.quantity <= p.stock)
+              .map(
+                (offer) =>
+                  `<label class="offer-card"><input type="radio" name="offer" value="${escape(offer.id)}" ${offer.id === chosenOffer ? 'checked' : ''}><span><b>${escape(offer.label || t('الكمية') + ': ' + offer.quantity)}</b><small>${escape(t('الكمية'))}: ${offer.quantity} ${offer.freeShipping ? escape(t('· شحن مجاني')) : ''}</small></span><strong>${money(offer.total)}</strong></label>`,
+              )
+              .join('')
+          : '';
       choices.dataset.signature = signature;
     }
     const priced = quantityPrice(p, purchaseQuantity());
@@ -507,7 +535,7 @@ function renderCheckout(html: string) {
     document
       .querySelectorAll<HTMLElement>('[data-product-price]')
       .forEach((element) => (element.textContent = money(priced.total)));
-    if ($('[data-product-quantity]')) $('[data-product-quantity]')!.hidden = false;
+    if ($('[data-product-quantity]')) $('[data-product-quantity]')!.hidden = !!p.bundleMode;
     const tail = $('[data-quantity-tail]');
     if (tail) {
       tail.hidden = !p.quantityPricing;
@@ -607,6 +635,7 @@ async function updateQuote(refreshRevision = true) {
   } catch (e) {
     if (sequence !== quoteSerial) return;
     if (
+      (e as any).code === 'bundle_quantity_unavailable' ||
       (e as any).code === 'cart_changed' ||
       (e as any).code === 'offer_changed' ||
       (e as any).code === 'invalid_checkout_offer' ||
@@ -656,6 +685,7 @@ async function updateQuote(refreshRevision = true) {
           const p = (reviewProducts || config.products).find((p) => p.id === l.productId);
           return (
             !p ||
+            (p.bundleMode && !bundleChoices(p).includes(l.quantity)) ||
             (!!l.offerId && !cartOffers(p).some((offer) => offer.id === l.offerId)) ||
             (cartOffers(p).find((o) => o.id === l.offerId)?.revision ?? p.revision) !== l.revision
           );
@@ -677,6 +707,8 @@ async function updateQuote(refreshRevision = true) {
         }
         if (directCheckout) {
           const p = config.products.find((p) => p.id === config.productId);
+          if (p?.bundleMode && !bundleChoices(p).includes(directQuantity))
+            setPurchaseQuantity(bundleChoices(p)[0] || 1);
           if (selectedOfferId && !p?.offers.some((o) => o.id === selectedOfferId)) {
             selectedOfferId = p ? quantityPrice(p, directQuantity).offerId : '';
             const regular = $<HTMLInputElement>('input[name=offer][value=""]');
@@ -691,7 +723,13 @@ async function updateQuote(refreshRevision = true) {
           .map((l) => {
             const p = config.products.find((p) => p.id === l.productId);
             if (!p || !p.active || !p.verified) return l;
-            return chosen(p, '', Math.min(l.quantity, p.stock));
+            return chosen(
+              p,
+              '',
+              p.bundleMode && !bundleChoices(p).includes(l.quantity)
+                ? bundleChoices(p)[0] || 1
+                : Math.min(l.quantity, p.stock),
+            );
           });
         if (new Set(updated.map((l) => l.supplier)).size > 1) {
           toast(t('تغير مورد أحد المنتجات. احذف المنتج غير المتوافق يدويًا.'));
@@ -725,7 +763,7 @@ document.addEventListener('click', (e) => {
   if (el.id === 'buy-now' || el.hasAttribute('data-buy-now')) {
     const query = new URLSearchParams({
       product: el.dataset.productId!,
-      quantity: $<HTMLInputElement>('#product-quantity')?.value || '1',
+      quantity: String(purchaseQuantity()),
       offer: currentOfferId(),
     });
     location.href = '/checkout?' + query;
@@ -836,6 +874,26 @@ document.querySelector<HTMLInputElement>('#product-quantity')?.addEventListener(
 document
   .querySelector<HTMLInputElement>('#product-quantity')
   ?.addEventListener('change', () => setPurchaseQuantity(purchaseQuantity()));
+document.addEventListener('change', (event) => {
+  const select = event.target;
+  if (!(select instanceof HTMLSelectElement) || !select.dataset.bundleQuantity) return;
+  const quantity = Number(select.value);
+  if (select.dataset.bundleDirect === 'true') {
+    const p = config.products.find((p) => p.id === config.productId);
+    if (!p || !bundleChoices(p).includes(quantity)) return;
+    setPurchaseQuantity(quantity);
+    sessionStorage.setItem(directQuantityKey, String(quantity));
+    quote = null;
+    render();
+    void updateQuote();
+  } else {
+    const current = read();
+    const line = current.find((l) => l.sku === select.dataset.bundleQuantity);
+    const p = config.products.find((p) => p.id === line?.productId);
+    if (!line || !p || !bundleChoices(p).includes(quantity)) return;
+    write(current.map((l) => (l.sku === line.sku ? chosen(p, '', quantity) : l)));
+  }
+});
 // Offer controls may be rebuilt after a reviewed price/offer update.
 document.addEventListener('change', (event) => {
   const input = event.target;

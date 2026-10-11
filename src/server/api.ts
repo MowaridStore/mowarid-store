@@ -1,3 +1,4 @@
+import { validNewPassword, PASSWORD_HINT } from '../shared/password';
 import { safeProducts, reviewPrices } from './price-safety';
 import { maximumShipping, shippingCosts } from './shipping-policy';
 import { businessDate, businessStart, nextDay } from '../shared/time';
@@ -266,7 +267,7 @@ api.post('/auth/setup', async (c) => {
     .object({
       token: z.string().max(200).optional(),
       email: z.email(),
-      password: z.string().min(16).max(128),
+      password: z.string().min(8).max(128).refine(validNewPassword, PASSWORD_HINT),
       turnstileSiteKey: z.string().max(100).optional(),
       turnstileSecret: z.string().max(255).optional(),
       turnstileToken: z.string().max(4096).optional(),
@@ -379,7 +380,7 @@ api.post('/auth/recover', async (c) => {
     .object({
       email: z.email(),
       code: z.string().max(100),
-      password: z.string().min(16).max(128),
+      password: z.string().min(8).max(128).refine(validNewPassword, PASSWORD_HINT),
       turnstileToken: z.string().max(4096).default(''),
     })
     .parse(await c.req.json());
@@ -453,7 +454,7 @@ api.post('/auth/passkey/verify', async (c) => {
     .object({
       kind: z.enum(['login', 'recover']),
       response: passkeyResponseSchema,
-      password: z.string().min(16).max(128).optional(),
+      password: z.string().min(8).max(128).refine(validNewPassword, PASSWORD_HINT).optional(),
     })
     .parse(await c.req.json());
   if (b.kind === 'recover' && !b.password)
@@ -846,7 +847,10 @@ api.delete('/admin/passkeys/:id', async (c) => {
 });
 api.post('/admin/password', async (c) => {
   const b = z
-    .object({ current: z.string().max(128), password: z.string().min(16).max(128) })
+    .object({
+      current: z.string().max(128),
+      password: z.string().min(8).max(128).refine(validNewPassword, PASSWORD_HINT),
+    })
     .parse(await c.req.json());
   const a = await c.env.DB.prepare('SELECT password,email FROM admins WHERE id=?')
     .bind(c.get('admin'))
@@ -1554,6 +1558,22 @@ api.put('/admin/products/:id', async (c) => {
   }
   if (p.presentation?.promotion && p.presentation.promotion.price >= p.price)
     throw new DomainError('invalid_promotion', 'سعر العرض يجب أن يكون أقل من السعر الأصلي.');
+  if (p.presentation?.bundleMode) {
+    if (p.offers.length > 2 || p.offers.some((o) => o.quantity < 2))
+      throw new DomainError(
+        'invalid_bundles',
+        'يمكنك إضافة باقتين بجانب المنتج الواحد، بكمية لا تقل عن 2.',
+        400,
+        [
+          {
+            field: 'offers',
+            label: 'الباقات',
+            message: 'يمكنك إضافة باقتين بجانب المنتج الواحد، بكمية لا تقل عن 2.',
+          },
+        ],
+      );
+    delete p.presentation.quantityPricing;
+  }
   const enabledQuantities = p.offers.filter((o) => o.enabled !== false).map((o) => o.quantity);
   if (new Set(enabledQuantities).size !== enabledQuantities.length)
     throw new DomainError('duplicate_quantity', 'حدد عرضًا واحدًا لكل كمية.', 400, [
@@ -1566,7 +1586,8 @@ api.put('/admin/products/:id', async (c) => {
     p.active &&
     enabledQuantities.length &&
     Math.max(...enabledQuantities) < 100 &&
-    !p.presentation?.quantityPricing
+    !p.presentation?.quantityPricing &&
+    !p.presentation?.bundleMode
   ) {
     const prior = await cartProducts(c.env.DB, [p.id]);
     if (!prior[0] || JSON.stringify(prior[0].offers) !== JSON.stringify(p.offers))

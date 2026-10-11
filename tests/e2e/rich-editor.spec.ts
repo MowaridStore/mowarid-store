@@ -197,6 +197,8 @@ test('draft preview languages update unsaved names and descriptions without alte
     await expect(preview.locator('.product-description')).toHaveText('English description');
     await page.getByLabel('لغة المعاينة', { exact: true }).selectOption('ar');
     await expect(preview.locator('h1')).toHaveText('اسم عربي غير محفوظ');
+    await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
+    await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
     await page.getByLabel('طريقة عرض المنتج', { exact: true }).selectOption('landing');
     await expect(page.getByLabel('لغة المعاينة', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'معاينة المسودة', exact: true }).click();

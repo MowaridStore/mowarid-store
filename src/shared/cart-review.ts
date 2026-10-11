@@ -14,6 +14,12 @@ export function compatibleCartLine(line: LocalCartLine, product?: PublicProduct)
   )
     return false;
   if (
+    product.bundleMode &&
+    line.quantity !== 1 &&
+    !product.offers.some((o) => o.quantity === line.quantity)
+  )
+    return false;
+  if (
     line.offerId &&
     line.offerId !== QUANTITY_TAIL_ID &&
     !product.offers.some((o) => o.id === line.offerId && o.quantity === line.quantity)

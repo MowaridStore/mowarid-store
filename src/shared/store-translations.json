@@ -1426,5 +1426,21 @@
   "سعر الكميات الأكبر تغير. راجع الإجمالي الجديد.": {
     "en": "The price for larger quantities changed. Review the new total.",
     "fr": "Le prix des quantités supérieures a changé. Vérifiez le nouveau total."
+  },
+  "المنتج موجود في السلة. اختر الباقة من السلة.": {
+    "fr": "Le produit est déjà dans le panier. Choisissez son pack dans le panier.",
+    "en": "This product is already in your cart. Choose its bundle in the cart."
+  },
+  "اختر إحدى الباقات المتاحة لهذا المنتج.": {
+    "fr": "Choisissez l’un des packs disponibles pour ce produit.",
+    "en": "Choose an available bundle for this product."
+  },
+  "راجع الباقات المتاحة": {
+    "fr": "Vérifier les packs disponibles",
+    "en": "Review available bundles"
+  },
+  "الباقة": {
+    "fr": "Pack",
+    "en": "Bundle"
   }
 }

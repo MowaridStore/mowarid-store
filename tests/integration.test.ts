@@ -145,6 +145,7 @@ beforeAll(async () => {
   await db.exec(await readFile('migrations/0013_product_presentation.sql', 'utf8'));
   await db.exec(await readFile('migrations/0014_campaign_links.sql', 'utf8'));
   await db.exec(await readFile('migrations/0015_funnel.sql', 'utf8'));
+  await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
   await db.exec(
     (await readFile('fixtures/demo.sql', 'utf8'))
       .split('\n')
@@ -182,7 +183,7 @@ describe('real Worker runtime and D1 transactions', () => {
     const r = await req('/auth/setup', {
       token: 'test-setup',
       email: 'owner@example.com',
-      password: 'a-secure-test-password',
+      password: 'a-secure-test-password-2026',
     });
     expect(r.status).toBe(201);
     cookie = r.headers.get('set-cookie')!.split(';')[0];
@@ -505,6 +506,7 @@ describe('real Worker runtime and D1 transactions', () => {
     await db.exec(await readFile('migrations/0013_product_presentation.sql', 'utf8'));
     await db.exec(await readFile('migrations/0014_campaign_links.sql', 'utf8'));
     await db.exec(await readFile('migrations/0015_funnel.sql', 'utf8'));
+    await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
     for (const key of manifest.parts) {
       const object = await env.BACKUPS.get(key);
       expect(await object!.text()).not.toContain(savedRef);
@@ -2161,14 +2163,14 @@ describe('real Worker runtime and D1 transactions', () => {
         await req('/auth/recover', {
           email: 'owner@example.com',
           code: 'wrong',
-          password: 'a-new-secure-test-password',
+          password: 'a-new-secure-test-password-2026',
         })
       ).status,
     ).toBe(401);
     const recovered = await req('/auth/recover', {
       email: 'owner@example.com',
       code: recoverCode,
-      password: 'a-new-secure-test-password',
+      password: 'a-new-secure-test-password-2026',
     });
     expect(recovered.status).toBe(200);
     const data = (await recovered.json()) as any;
@@ -2181,7 +2183,7 @@ describe('real Worker runtime and D1 transactions', () => {
         await req('/auth/recover', {
           email: 'owner@example.com',
           code: recoverCode,
-          password: 'a-new-secure-test-password',
+          password: 'a-new-secure-test-password-2026',
         })
       ).status,
     ).toBe(401);
@@ -2875,5 +2877,67 @@ it('reconciles removed SKUs only after a complete full catalogue scan and handle
     for (const row of dbStates)
       await env.DB.prepare('INSERT INTO sync_state VALUES(?,?)').bind(row.name, row.json).run();
     vi.unstubAllGlobals();
+  }
+});
+it('enforces fixed bundle limits and quantity choices without changing historical order prices', async () => {
+  const original = ((await (await req('/admin/products', undefined, true)).json()) as any[]).find(
+    (p) => p.id === 'demo-bag',
+  );
+  const snapshots = (await env.DB.prepare('SELECT id,quote FROM orders ORDER BY id').all()).results;
+  const offer = (id: string, quantity: number) => ({
+    id,
+    quantity,
+    label: '',
+    total: original.price * quantity,
+    freeShipping: false,
+  });
+  const presentation = { ...original.presentation, bundleMode: true, promotion: undefined };
+  try {
+    const tooMany = await req(
+      '/admin/products/' + original.id,
+      { ...original, presentation, offers: [offer('two', 2), offer('three', 3), offer('four', 4)] },
+      true,
+      'PUT',
+    );
+    expect(tooMany.status).toBe(400);
+    expect((await tooMany.json()) as any).toMatchObject({ error: 'invalid_bundles' });
+    expect(
+      (
+        await req(
+          '/admin/products/' + original.id,
+          { ...original, presentation, offers: [offer('one', 1)] },
+          true,
+          'PUT',
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await req(
+          '/admin/products/' + original.id,
+          { ...original, presentation, offers: [offer('two', 2), offer('three', 3)] },
+          true,
+          'PUT',
+        )
+      ).status,
+    ).toBe(200);
+    const current = ((await (await req('/products')).json()) as any[]).find(
+      (p) => p.id === original.id,
+    );
+    expect(current.bundleMode).toBe(true);
+    expect(current.fulfillment).toBeUndefined();
+    for (const quantity of [1, 2, 3, 4]) {
+      const quoted = await req('/checkout/quote', {
+        city: 'Rabat',
+        cart: [{ productId: original.id, offerId: '', quantity, revision: current.revision }],
+      });
+      expect(quoted.status).toBe(quantity === 4 ? 409 : 200);
+    }
+    await env.DB.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
+    expect((await env.DB.prepare('SELECT id,quote FROM orders ORDER BY id').all()).results).toEqual(
+      snapshots,
+    );
+  } finally {
+    await req('/admin/products/' + original.id, original, true, 'PUT');
   }
 });

@@ -228,27 +228,25 @@ export function assertPublishedPrices(
 ) {
   if (cost === null || !Number.isSafeInteger(cost) || cost < 0)
     throw new DomainError('missing_fulfillment_price', 'تكلفة الجملة غير متاحة لنشر المنتج.');
-  for (const [index, option] of [
-    { total: price, quantity: 1, freeShipping: false },
-    { total: price * 100, quantity: 100, freeShipping: false },
-    ...offers.filter((o) => activeOffer(o)),
-    ...(tailPricing({ offers, presentation: productShipping.presentation } as Product)
-      ? [tailPricing({ offers, presentation: productShipping.presentation } as Product)!].flatMap(
-          (tail) =>
-            [tail.fromQuantity, 100].map((quantity) => ({
-              quantity,
-              total: tail.unitPrice * quantity,
-              freeShipping: tail.freeShipping,
-            })),
-        )
+  if (productShipping.presentation?.bundleMode === false) offers = [];
+  const active = offers.filter((o) => activeOffer(o));
+  const tail = tailPricing({ offers, presentation: productShipping.presentation } as Product);
+  const checks = [
+    { total: price, quantity: 1, freeShipping: false, field: 'price' },
+    ...(!productShipping.presentation?.bundleMode
+      ? [{ total: price * 100, quantity: 100, freeShipping: false, field: 'price' }]
       : []),
-  ].entries()) {
-    const field =
-      index > 1 + offers.filter((o) => activeOffer(o)).length
-        ? 'presentation.quantityPricing.unitPrice'
-        : index > 1
-          ? `offers.${index - 2}.total`
-          : 'price';
+    ...active.map((o) => ({ ...o, field: `offers.${offers.indexOf(o)}.total` })),
+    ...(tail
+      ? [tail.fromQuantity, 100].map((quantity) => ({
+          total: tail.unitPrice * quantity,
+          quantity,
+          freeShipping: tail.freeShipping,
+          field: 'presentation.quantityPricing.unitPrice',
+        }))
+      : []),
+  ];
+  for (const option of checks) {
     try {
       if (offerUnitPrice(option.total, option.quantity) <= 0)
         throw new DomainError('invalid_offer_price', 'المبلغ صغير جدًا للكمية المحددة.');
@@ -263,7 +261,11 @@ export function assertPublishedPrices(
     } catch (error) {
       if (!(error instanceof DomainError)) throw error;
       throw new DomainError(error.code, error.message, 400, [
-        { field, label: index ? 'إجمالي العرض بالدرهم' : 'السعر بالدرهم', message: error.message },
+        {
+          field: option.field,
+          label: option.field === 'price' ? 'السعر بالدرهم' : 'إجمالي العرض بالدرهم',
+          message: error.message,
+        },
       ]);
     }
   }
@@ -304,6 +306,16 @@ export function quoteCart(
     supplier = p.supplier;
     if (!Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > 100)
       throw new DomainError('invalid_quantity', 'الكمية غير صالحة.');
+    if (
+      p.presentation?.bundleMode &&
+      l.quantity !== 1 &&
+      !p.offers.some((o) => o.quantity === l.quantity)
+    )
+      throw new DomainError(
+        'bundle_quantity_unavailable',
+        'اختر إحدى الباقات المتاحة لهذا المنتج.',
+        409,
+      );
     const selected = quantityPrice(p, l.quantity);
     const expectedRevision = selected.revision;
     if (l.revision !== expectedRevision)

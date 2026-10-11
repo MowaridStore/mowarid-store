@@ -10,10 +10,15 @@ const key = btoa('k'.repeat(32));
 let challenge = '',
   session = '',
   csrf = '';
-const post = (path: string, body: unknown, cookie = challenge) =>
+const post = (path: string, body: unknown, cookie = challenge, ip = '198.18.90.1') =>
   runtime.dispatchFetch(origin + '/api' + path, {
     method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json', Cookie: cookie },
+    headers: {
+      Origin: origin,
+      'Content-Type': 'application/json',
+      Cookie: cookie,
+      'CF-Connecting-IP': ip,
+    },
     body: JSON.stringify(body),
   });
 beforeAll(async () => {
@@ -72,13 +77,7 @@ it('requires the private installation code before a visitor can create the owner
   expect(JSON.stringify(auth)).not.toContain(code);
   expect((await post('/auth/bootstrap', { token: 'incorrect-code' })).status).toBe(403);
   expect(
-    (
-      await post(
-        '/auth/setup',
-        { email: 'trainee@example.test', password: 'private-test-password-for-owner' },
-        '',
-      )
-    ).status,
+    (await post('/auth/setup', { email: 'trainee@example.test', password: 'Store123' }, '')).status,
   ).toBe(403);
   const bootstrap = await post('/auth/bootstrap', { token: code });
   expect(bootstrap.status).toBe(200);
@@ -88,7 +87,7 @@ it('requires the private installation code before a visitor can create the owner
 it('checks the trainee widget before storing credentials and protects installation recovery', async () => {
   const body = {
     email: 'trainee@example.test',
-    password: 'private-test-password-for-owner',
+    password: 'Store123',
     turnstileSiteKey: '0xABCDEFGHIJKLMNO12345',
     turnstileSecret: 'private-widget-secret',
     turnstileToken: 'bad-token',
@@ -97,6 +96,20 @@ it('checks the trainee widget before storing credentials and protects installati
   const db = await runtime.getD1Database('DB');
   expect(await db.prepare('SELECT COUNT(*) AS count FROM admins').first('count')).toBe(0);
   expect(await db.prepare('SELECT COUNT(*) AS count FROM credentials').first('count')).toBe(0);
+  for (const password of ['12345678', 'abcdefgh', 'abc123']) {
+    const invalid = await post(
+      '/auth/setup',
+      {
+        ...body,
+        password,
+        turnstileToken: 'verified-token',
+      },
+      challenge,
+      '198.18.90.' + (2 + ['12345678', 'abcdefgh', 'abc123'].indexOf(password)),
+    );
+    expect(invalid.status).toBe(400);
+    expect(await db.prepare('SELECT COUNT(*) AS count FROM admins').first('count')).toBe(0);
+  }
   const response = await post('/auth/setup', { ...body, turnstileToken: 'verified-token' });
   expect(response.status).toBe(201);
   const saved = (await response.json()) as any;
@@ -131,11 +144,47 @@ it('checks the trainee widget before storing credentials and protects installati
 });
 
 it('uses the encrypted per-store Turnstile secret for subsequent sign-in', async () => {
-  const body = { email: 'trainee@example.test', password: 'private-test-password-for-owner' };
+  const body = { email: 'trainee@example.test', password: 'Store123' };
   expect((await post('/auth/login', { ...body, turnstileToken: 'bad-token' }, '')).status).toBe(
     400,
   );
   expect((await post('/auth/login', { ...body, turnstileToken: 'login-token' }, '')).status).toBe(
     200,
   );
+});
+it('migrates compatible offers without changing their prices, quantities or saved legacy configuration', async () => {
+  const db = await runtime.getD1Database('DB');
+  await db.exec(
+    (await readFile('fixtures/demo.sql', 'utf8'))
+      .split('\n')
+      .filter((line) => line.startsWith('INSERT INTO products'))
+      .join('\n'),
+  );
+  const offers = JSON.stringify([
+    { id: 'two', label: '', quantity: 2, total: 26000, freeShipping: true, enabled: true },
+  ]);
+  await db
+    .prepare('UPDATE products SET offers=?,presentation=?,revision=7 WHERE id=?')
+    .bind(offers, JSON.stringify({ quantityPricing: { unitPrice: 12000 } }), 'demo-bag')
+    .run();
+  const before = await db
+    .prepare('SELECT price,offers FROM products WHERE id=?')
+    .bind('demo-bag')
+    .first();
+  await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
+  const after = await db
+    .prepare('SELECT price,offers,presentation,revision FROM products WHERE id=?')
+    .bind('demo-bag')
+    .first<any>();
+  expect(after.price).toBe(before!.price);
+  expect(after.offers).toBe(before!.offers);
+  expect(JSON.parse(after.presentation)).toMatchObject({
+    bundleMode: true,
+    quantityPricing: { unitPrice: 12000 },
+  });
+  expect(after.revision).toBe(8);
+  await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
+  expect(
+    await db.prepare('SELECT revision FROM products WHERE id=?').bind('demo-bag').first('revision'),
+  ).toBe(8);
 });
