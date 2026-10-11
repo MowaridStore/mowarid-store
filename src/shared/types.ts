@@ -9,13 +9,19 @@ export type ProductPresentation = ProductDescription & {
   crossSells?: CrossSell[];
   promotion?: { price: number; endsAt?: string | null; startsAt?: string | null } | null;
   landingLanguage?: Language;
+  contentLanguage?: Language;
   deliveryReturns?: string;
   recommendationMode?: 'auto' | 'manual' | 'hidden';
   recommendedIds?: string[];
   translations?: Partial<
     Record<
       Language,
-      ProductDescription & { name?: string; description?: string; deliveryReturns?: string }
+      ProductDescription & {
+        name?: string;
+        description?: string;
+        keywords?: string;
+        deliveryReturns?: string;
+      }
     >
   >;
 };

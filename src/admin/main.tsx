@@ -1,4 +1,5 @@
 import { BundlesEditor } from './bundles';
+import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
 import { toLocalDateTime, toUtcDateTime } from './deadline';
 import { pricedProduct } from '../shared/commerce';
 import { keepAccordionHeader } from './accordion';
@@ -109,6 +110,7 @@ function Field({
   minLength,
   path,
   secret = false,
+  dir,
 }: {
   label: string;
   value: string | number;
@@ -120,6 +122,7 @@ function Field({
   minLength?: number;
   path?: string;
   secret?: boolean;
+  dir?: 'rtl' | 'ltr' | 'auto';
 }) {
   const error = useContext(FieldErrors)[path || ''],
     id = useId();
@@ -165,6 +168,7 @@ function Field({
       {type === 'textarea' ? (
         <textarea
           id={id}
+          dir={dir}
           value={value}
           aria-invalid={!!error}
           aria-describedby={error ? id + '-error' : undefined}
@@ -173,6 +177,7 @@ function Field({
       ) : (
         <input
           id={id}
+          dir={dir}
           type={type}
           autoComplete={autoComplete}
           required={required}
@@ -220,11 +225,19 @@ function Upload({
   action,
   label = t('رفع صورة'),
   purpose = 'general',
+  multiple = false,
+  compact = false,
+  maxFiles = 1,
+  onUploads,
 }: {
-  onUpload: (data: { url: string; width: number; height: number }) => void;
+  onUpload?: (data: { url: string; width: number; height: number }) => void;
   action: Action;
   label?: string;
   purpose?: ImagePurpose;
+  multiple?: boolean;
+  compact?: boolean;
+  maxFiles?: number;
+  onUploads?: (data: { url: string; width: number; height: number }[]) => void;
 }) {
   return (
     <div className="image-upload" data-image-purpose={purpose}>
@@ -233,14 +246,28 @@ function Upload({
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp"
+          multiple={multiple}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void action(async () => onUpload(await upload(f)), t('تم تجهيز الصورة ورفعها.'));
+            const files = Array.from(e.target.files || []).slice(0, maxFiles);
+            if (files.length)
+              void action(async () => {
+                const results = [];
+                for (const file of files) results.push(await upload(file));
+                if (onUploads) onUploads(results);
+                else results.forEach((result) => onUpload?.(result));
+              }, t('تم تجهيز الصورة ورفعها.'));
             e.target.value = '';
           }}
         />
       </label>
-      <ImageHint purpose={purpose} />
+      {compact ? (
+        <details className="image-upload-guide">
+          <summary>{t('نصائح الصور')}</summary>
+          <ImageHint purpose={purpose} />
+        </details>
+      ) : (
+        <ImageHint purpose={purpose} />
+      )}
     </div>
   );
 }
@@ -2098,6 +2125,24 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     [drag, setDrag] = useState(''),
     [contentLanguage, setContentLanguage] = useState<Language>('ar'),
     [storeLanguage, setStoreLanguage] = useState<Language>('ar');
+  const contentBaseLanguage = draft?.presentation?.contentLanguage || storeLanguage;
+  const content = draft ? productCopy(draft, contentLanguage, contentBaseLanguage) : null;
+  const copyPath = (field: keyof ProductCopy) =>
+    contentLanguage === contentBaseLanguage
+      ? field === 'descriptionFormat' || field === 'descriptionHtml'
+        ? 'presentation.' + field
+        : field
+      : `presentation.translations.${contentLanguage}.${field}`;
+  const editCopy = (change: Partial<ProductCopy>) => {
+    if (validationFailure.current) {
+      clearValidation();
+      validationFailure.current = false;
+    }
+    setErrors({});
+    setDraft((current) =>
+      current ? updateProductCopy(current, contentLanguage, contentBaseLanguage, change) : current,
+    );
+  };
   const landingLanguage = draft?.presentation?.landingLanguage ?? storeLanguage;
   const landingUISettings = { ...defaults, storeLanguage: landingLanguage };
   const productFormDefaults = localizedForm(landingUISettings);
@@ -2113,6 +2158,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     setMaximumShipping(settings.maximumShipping);
     setProviderShipping(settings.shippingCosts);
     setStoreLanguage(settings.settings.storeLanguage);
+    setContentLanguage(settings.settings.storeLanguage);
     setCatalog(cs);
     setCategories(cats);
     setShippingDefaults({
@@ -2127,6 +2173,11 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     setErrors({});
     setSectionsCollapsed(false);
     setPreview(false);
+    setContentLanguage(
+      (pricingSettings.storeLanguages || [storeLanguage]).length > 1
+        ? draft?.presentation?.contentLanguage || storeLanguage
+        : storeLanguage,
+    );
   }, [draft?.id]);
   useEffect(() => {
     if (!draft?.sku) {
@@ -2157,6 +2208,13 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     } catch (error) {
       if (error instanceof ApiError && error.details.length) {
         validationFailure.current = true;
+        const field = error.details[0].field;
+        const translated = field.match(/^presentation\.translations\.(ar|fr|en)\./);
+        if (translated) setContentLanguage(languageOf(translated[1]));
+        else if (
+          ['name', 'description', 'keywords', 'presentation.descriptionHtml'].includes(field)
+        )
+          setContentLanguage(contentBaseLanguage);
         setErrors(Object.fromEntries(error.details.map((issue) => [issue.field, issue])));
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
@@ -2299,32 +2357,53 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
   return (
     <FieldErrors.Provider value={errors}>
       <div className="toolbar product-editor-toolbar">
-        <button
-          className="primary"
-          onClick={() =>
-            void action(
-              submit(async () => {
-                await api(
-                  '/admin/products/' + draft.id,
-                  { ...draft, presentation: { ...draft.presentation, landingLanguage } },
-                  'PUT',
-                );
-                await load();
-                setDraft(null);
-              }),
-              t('تم حفظ المنتج.'),
-            )
-          }
-        >
-          {t('حفظ المنتج')}
-        </button>
+        <div className="product-save-controls">
+          <button
+            className="primary"
+            onClick={() =>
+              void action(
+                submit(async () => {
+                  await api(
+                    '/admin/products/' + draft.id,
+                    {
+                      ...draft,
+                      presentation: {
+                        ...draft.presentation,
+                        landingLanguage,
+                        contentLanguage: contentBaseLanguage,
+                      },
+                    },
+                    'PUT',
+                  );
+                  await load();
+                  setDraft(null);
+                }),
+                t('تم حفظ المنتج.'),
+              )
+            }
+          >
+            {t('حفظ المنتج')}
+          </button>
+          <div className={'product-publish-state ' + (draft.active ? 'is-published' : 'is-draft')}>
+            <Check
+              label={t('نشر المنتج')}
+              value={!!draft.active}
+              onChange={(value) => patch('active', Number(value))}
+            />
+            <small>{t(draft.active ? 'سيُنشر عند الحفظ' : 'سيُحفظ كمسودة')}</small>
+          </div>
+        </div>
         <button
           onClick={() =>
             void action(
               submit(async () => {
                 const r = await api('/admin/preview', {
                   ...draft,
-                  presentation: { ...draft.presentation, landingLanguage },
+                  presentation: {
+                    ...draft.presentation,
+                    landingLanguage,
+                    contentLanguage: contentBaseLanguage,
+                  },
                   previewLanguage: storeLanguage,
                 });
                 setPreviewLanguage(draft.pageMode === 'landing' ? landingLanguage : storeLanguage);
@@ -2382,7 +2461,11 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     void action(async () => {
                       const result = await api('/admin/preview', {
                         ...draft,
-                        presentation: { ...draft.presentation, landingLanguage },
+                        presentation: {
+                          ...draft.presentation,
+                          landingLanguage,
+                          contentLanguage: contentBaseLanguage,
+                        },
                         previewLanguage: language,
                       });
                       setPreviewDocument(result.html);
@@ -2437,38 +2520,39 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 <summary>
                   {draft.sku ? t('تغيير منتج مورد') + ' · ' + draft.sku : t('اختيار منتج من مورد')}
                 </summary>
-                <Field
-                  label={t('البحث في منتجات مورد بالاسم أو SKU')}
-                  value={catalogSearch}
-                  onChange={setCatalogSearch}
-                />
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() =>
-                    void action(async () => {
-                      setCatalog(
-                        await api('/admin/catalog?q=' + encodeURIComponent(catalogSearch)),
-                      );
-                    }, t('تم تحديث نتائج الكتالوج. اختر المنتج من البطاقات.'))
-                  }
-                >
-                  {t('بحث في الكتالوج')}
-                </button>
-                <h3>{t('اختر المنتج من كتالوج مورد')}</h3>
-                <label>
-                  {t('نوع الوصف المستورد من مورد')}
-                  <select
-                    aria-label={t('نوع الوصف المستورد من مورد')}
-                    value={descriptionSource}
-                    onChange={(event) =>
-                      setDescriptionSource(event.target.value as 'text' | 'html')
+                <div className="catalog-search-row">
+                  <Field
+                    label={t('البحث في منتجات مورد بالاسم أو SKU')}
+                    value={catalogSearch}
+                    onChange={setCatalogSearch}
+                  />
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      void action(async () => {
+                        setCatalog(
+                          await api('/admin/catalog?q=' + encodeURIComponent(catalogSearch)),
+                        );
+                      }, t('تم تحديث نتائج الكتالوج. اختر المنتج من البطاقات.'))
                     }
                   >
-                    <option value="text">{t('وصف نصي عادي')}</option>
-                    <option value="html">{t('وصف HTML منسّق')}</option>
-                  </select>
-                </label>
+                    {t('بحث في الكتالوج')}
+                  </button>
+                  <label>
+                    {t('نوع الوصف المستورد من مورد')}
+                    <select
+                      aria-label={t('نوع الوصف المستورد من مورد')}
+                      value={descriptionSource}
+                      onChange={(event) =>
+                        setDescriptionSource(event.target.value as 'text' | 'html')
+                      }
+                    >
+                      <option value="text">{t('وصف نصي عادي')}</option>
+                      <option value="html">{t('وصف HTML منسّق')}</option>
+                    </select>
+                  </label>
+                </div>
                 <div className="catalog-grid" aria-label={t('منتجات مورد')}>
                   {catalog.map((c) => (
                     <button
@@ -2511,279 +2595,315 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     </p>
                   )}
                 </div>
+              </details>
+              <div className="product-basics-grid">
                 <Field
                   path="sku"
                   label={t('كود المنتج لدى مورد')}
                   value={draft.sku}
                   onChange={(v) => patch('sku', v)}
                 />
-              </details>
-              <Field
-                path="name"
-                label={t('اسم المنتج')}
-                value={draft.name}
-                onChange={(v) => patch('name', v)}
-              />
-              <Field
-                path="slug"
-                label={t('الرابط (حروف إنجليزية وشرطات)')}
-                value={draft.slug}
-                onChange={(v) => patch('slug', v)}
-              />
-
-              <label data-field="categoryId">
-                {t('قسم المنتج')}
-                <select
-                  aria-invalid={!!errors.categoryId}
-                  value={draft.categoryId || ''}
-                  onChange={(event) => patch('categoryId', event.target.value || null)}
-                >
-                  <option value="">{t('دون قسم')}</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                      {category.active ? '' : t(' · القسم مخفي')}
-                    </option>
-                  ))}
-                </select>
-                {errors.categoryId && (
-                  <small className="field-error">{errors.categoryId.message}</small>
-                )}
-              </label>
-              <p className="muted">{t('أنشئ الأقسام ورتّبها من «أقسام المنتجات» في القائمة.')}</p>
-
-              <details className="product-optional-section">
-                <summary>{t('رابط صورة خارجي (اختياري)')}</summary>
-                <Field
-                  path="image"
-                  label={t('رابط صورة البطاقة')}
-                  value={draft.image}
-                  onChange={(v) => patch('image', v)}
-                />
-              </details>
-              <Upload action={action} purpose="product" onUpload={(r) => patch('image', r.url)} />
-              <h3>{t('صور الصفحة العادية')}</h3>
-              <p className="muted">
-                {t(
-                  'الصورة الرئيسية تظهر أولًا. أضف صورًا أخرى يتنقل بينها الزائر؛ صور اللاندينج باج تبقى في محررها.',
-                )}
-              </p>
-              <div className="product-gallery-editor">
-                {[...new Set([draft.image, ...(draft.gallery || [])].filter(Boolean))].map(
-                  (image) => (
-                    <div
-                      key={image}
-                      className={
-                        'gallery-editor-row' + (image === draft.image ? ' is-main-image' : '')
-                      }
-                    >
-                      <img src={image} alt="" loading="lazy" />
-                      <button
-                        type="button"
-                        className={
-                          image === draft.image ? 'primary small-button' : 'secondary small-button'
-                        }
-                        aria-pressed={image === draft.image}
-                        onClick={() =>
-                          setDraft((p) =>
-                            p
-                              ? {
-                                  ...p,
-                                  image,
-                                  gallery: [
-                                    ...new Set(
-                                      [image, p.image, ...(p.gallery || [])].filter(Boolean),
-                                    ),
-                                  ].slice(0, 12),
-                                }
-                              : p,
-                          )
-                        }
-                      >
-                        {image === draft.image ? t('الصورة الرئيسية') : t('تعيين كصورة رئيسية')}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger small-button"
-                        onClick={() =>
-                          setDraft((p) => {
-                            if (!p) return p;
-                            const gallery = (p.gallery || []).filter((url) => url !== image);
-                            return {
-                              ...p,
-                              gallery,
-                              image: p.image === image ? gallery[0] || '' : p.image,
-                            };
-                          })
-                        }
-                      >
-                        {t('حذف الصورة')}
-                      </button>
-                    </div>
-                  ),
-                )}
+                <label data-field="categoryId">
+                  {t('قسم المنتج')}
+                  <select
+                    aria-invalid={!!errors.categoryId}
+                    value={draft.categoryId || ''}
+                    onChange={(event) => patch('categoryId', event.target.value || null)}
+                  >
+                    <option value="">{t('دون قسم')}</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                        {category.active ? '' : t(' · القسم مخفي')}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.categoryId && (
+                    <small className="field-error">{errors.categoryId.message}</small>
+                  )}
+                </label>{' '}
               </div>
-              {(draft.gallery || []).length < 12 && (
-                <Upload
-                  action={action}
-                  purpose="product"
-                  onUpload={(r) => patch('gallery', [...(draft.gallery || []), r.url])}
+              <details className="product-optional-section product-url-options">
+                <summary>
+                  {t('رابط المنتج')} <small dir="ltr">/{draft.slug || '…'}</small>
+                </summary>
+                <Field
+                  path="slug"
+                  label={t('الرابط (حروف إنجليزية وشرطات)')}
+                  value={draft.slug}
+                  onChange={(v) => patch('slug', v)}
                 />
-              )}
-              <Check
-                label={t('نشر المنتج')}
-                value={!!draft.active}
-                onChange={(v) => patch('active', Number(v))}
-              />
+              </details>
+
+              <div className="product-media-editor">
+                <div className="product-media-toolbar">
+                  <strong>{t('صور المنتج')}</strong>
+                  {new Set([draft.image, ...(draft.gallery || [])].filter(Boolean)).size < 12 && (
+                    <Upload
+                      action={action}
+                      purpose="product"
+                      label={t('إضافة صور')}
+                      multiple
+                      compact
+                      maxFiles={
+                        12 - new Set([draft.image, ...(draft.gallery || [])].filter(Boolean)).size
+                      }
+                      onUploads={(uploaded) => {
+                        setDraft((current) => {
+                          if (!current) return current;
+                          const gallery = [
+                            ...new Set(
+                              [
+                                current.image,
+                                ...(current.gallery || []),
+                                ...uploaded.map((image) => image.url),
+                              ].filter(Boolean),
+                            ),
+                          ].slice(0, 12);
+                          return { ...current, image: current.image || gallery[0] || '', gallery };
+                        });
+                        setErrors((issues) =>
+                          Object.fromEntries(
+                            Object.entries(issues).filter(
+                              ([field]) => field !== 'image' && field !== 'gallery',
+                            ),
+                          ),
+                        );
+                      }}
+                    />
+                  )}
+                  <details className="product-image-link">
+                    <summary>{t('رابط صورة خارجي (اختياري)')}</summary>
+                    <Field
+                      path="image"
+                      label={t('رابط صورة البطاقة')}
+                      value={draft.image}
+                      onChange={(v) => patch('image', v)}
+                    />
+                  </details>
+                </div>
+                <div className="product-gallery-editor">
+                  {[...new Set([draft.image, ...(draft.gallery || [])].filter(Boolean))].map(
+                    (image) => (
+                      <div
+                        key={image}
+                        className={
+                          'gallery-editor-row' + (image === draft.image ? ' is-main-image' : '')
+                        }
+                      >
+                        <img src={image} alt="" loading="lazy" />
+                        {image === draft.image && (
+                          <span className="gallery-main-badge">{t('الرئيسية')}</span>
+                        )}
+                        <div className="gallery-image-actions">
+                          <button
+                            type="button"
+                            className={
+                              image === draft.image
+                                ? 'primary small-button'
+                                : 'secondary small-button'
+                            }
+                            aria-pressed={image === draft.image}
+                            aria-label={
+                              image === draft.image ? t('الصورة الرئيسية') : t('تعيين كصورة رئيسية')
+                            }
+                            title={
+                              image === draft.image ? t('الصورة الرئيسية') : t('تعيين كصورة رئيسية')
+                            }
+                            onClick={() =>
+                              setDraft((p) =>
+                                p
+                                  ? {
+                                      ...p,
+                                      image,
+                                      gallery: [
+                                        ...new Set(
+                                          [image, p.image, ...(p.gallery || [])].filter(Boolean),
+                                        ),
+                                      ].slice(0, 12),
+                                    }
+                                  : p,
+                              )
+                            }
+                          >
+                            {image === draft.image ? '★' : '☆'}
+                          </button>
+                          <button
+                            type="button"
+                            className="danger small-button"
+                            aria-label={t('حذف الصورة')}
+                            title={t('حذف الصورة')}
+                            onClick={() =>
+                              setDraft((p) => {
+                                if (!p) return p;
+                                const gallery = (p.gallery || []).filter((url) => url !== image);
+                                return {
+                                  ...p,
+                                  gallery,
+                                  image: p.image === image ? gallery[0] || '' : p.image,
+                                };
+                              })
+                            }
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
             </div>
           </details>
           <details className="product-editor-section" open>
-            <summary>{t('الوصف')}</summary>
-            <div className="product-editor-section-body">
-              <label>
-                {t('طريقة عرض الوصف')}
-                <select
-                  aria-label={t('طريقة عرض الوصف')}
-                  value={draft.presentation?.descriptionFormat || 'text'}
-                  onChange={(event) => {
-                    const format = event.target.value as 'text' | 'html';
-                    setDraft((p) =>
-                      p
-                        ? {
-                            ...p,
-                            description:
-                              format === 'text' && p.presentation?.descriptionFormat === 'html'
-                                ? catalogText(p.presentation.descriptionHtml || '')
-                                : p.description,
-                            presentation: {
-                              ...p.presentation,
-                              descriptionFormat: format,
-                              ...(format === 'html' && !p.presentation?.descriptionHtml
-                                ? {
-                                    descriptionHtml: p.description
-                                      .replace(/&/g, '&amp;')
-                                      .replace(/</g, '&lt;')
-                                      .replace(/>/g, '&gt;')
-                                      .replace(/\n/g, '<br />'),
-                                  }
-                                : {}),
-                            },
-                          }
-                        : p,
-                    );
-                  }}
-                >
-                  <option value="text">{t('وصف نصي عادي')}</option>
-                  <option value="html">{t('وصف HTML منسّق')}</option>
-                </select>
-              </label>
-              {linkedCatalog && (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => {
-                    const imported = importedDescription(linkedCatalog, descriptionSource);
-                    setDraft((p) =>
-                      p
-                        ? {
-                            ...p,
-                            description: imported.description,
-                            presentation: {
-                              ...p.presentation,
-                              descriptionFormat: imported.descriptionFormat,
-                              descriptionHtml: imported.descriptionHtml,
-                            },
-                          }
-                        : null,
-                    );
-                  }}
-                >
-                  {t('استيراد الوصف من مورد')}
-                </button>
-              )}
-              <p className="muted">
-                {t(
-                  'اختر نوع الوصف قبل الاستيراد. يمكنك تعديل النص أو HTML بعد ذلك؛ يستبدل الاستيراد الوصف الحالي فقط.',
+            <summary>{t('محتوى المنتج')}</summary>
+            <div className="product-editor-section-body product-copy-editor">
+              <div className="product-copy-heading">
+                {(pricingSettings.storeLanguages || [storeLanguage]).length > 1 && (
+                  <label>
+                    {t('لغة محتوى المنتج')}
+                    <select
+                      aria-label={t('لغة محتوى المنتج')}
+                      value={contentLanguage}
+                      onChange={(event) => setContentLanguage(languageOf(event.target.value))}
+                    >
+                      {languages.map((language) => (
+                        <option key={language} value={language}>
+                          {languageNames[language]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
-              </p>
-              {draft.presentation?.descriptionFormat === 'html' ? (
+                <Field
+                  path={copyPath('name')}
+                  dir={contentLanguage === 'ar' ? 'rtl' : 'ltr'}
+                  label={t('اسم المنتج')}
+                  value={content!.name}
+                  onChange={(name) => editCopy({ name })}
+                />
+              </div>
+              <div className="product-description-tools">
+                <label>
+                  {t('طريقة عرض الوصف')}
+                  <select
+                    aria-label={t('طريقة عرض الوصف')}
+                    value={content!.descriptionFormat}
+                    onChange={(event) => {
+                      const format = event.target.value as 'text' | 'html';
+                      editCopy({
+                        descriptionFormat: format,
+                        ...(format === 'html' && !content!.descriptionHtml
+                          ? {
+                              descriptionHtml: content!.description
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/\n/g, '<br />'),
+                            }
+                          : format === 'text' && content!.descriptionFormat === 'html'
+                            ? { description: catalogText(content!.descriptionHtml) }
+                            : {}),
+                      });
+                    }}
+                  >
+                    <option value="text">{t('وصف نصي عادي')}</option>
+                    <option value="html">{t('وصف HTML منسّق')}</option>
+                  </select>
+                </label>
+                {linkedCatalog && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      const imported = importedDescription(linkedCatalog, descriptionSource);
+                      editCopy({
+                        description: imported.description,
+                        descriptionFormat: imported.descriptionFormat,
+                        descriptionHtml: imported.descriptionHtml || '',
+                      });
+                    }}
+                  >
+                    {t('استيراد الوصف من مورد')}
+                  </button>
+                )}
+              </div>
+              {contentLanguage !== contentBaseLanguage && (
+                <small className="muted">{t('الحقول الفارغة تستخدم محتوى المنتج الأصلي.')}</small>
+              )}
+              {content!.descriptionFormat === 'html' ? (
                 <RichTextEditor
-                  key={draft.id}
+                  key={draft.id + '-' + contentLanguage}
                   label={t('الوصف')}
-                  language={storeLanguage}
-                  path="presentation.descriptionHtml"
-                  value={draft.presentation.descriptionHtml || ''}
-                  error={errors['presentation.descriptionHtml']?.message}
+                  language={contentLanguage}
+                  path={copyPath('descriptionHtml')}
+                  value={content!.descriptionHtml}
+                  error={errors[copyPath('descriptionHtml')]?.message}
                   request={api}
-                  onChange={(value) =>
-                    patch('presentation', { ...draft.presentation, descriptionHtml: value })
-                  }
+                  onChange={(descriptionHtml) => editCopy({ descriptionHtml })}
                 />
               ) : (
                 <Field
-                  path="description"
+                  path={copyPath('description')}
+                  dir={contentLanguage === 'ar' ? 'rtl' : 'ltr'}
                   label={t('الوصف')}
-                  value={draft.description}
-                  onChange={(v) => patch('description', v)}
                   type="textarea"
+                  value={content!.description}
+                  onChange={(description) => editCopy({ description })}
                 />
               )}
               <Field
-                label={t('محتوى التوصيل والاسترجاع')}
-                type="textarea"
-                value={draft.presentation?.deliveryReturns || ''}
-                onChange={(deliveryReturns) =>
-                  patch('presentation', { ...draft.presentation, deliveryReturns })
-                }
-              />
-              <p className="muted">{t('اتركه فارغًا لاستخدام نص المتجر الافتراضي.')}</p>
-              <Field
-                path="keywords"
+                path={copyPath('keywords')}
+                dir={contentLanguage === 'ar' ? 'rtl' : 'ltr'}
                 label={t('كلمات مفتاحية (اختياري)')}
-                value={draft.keywords || ''}
-                onChange={(value) => patch('keywords', value)}
+                value={content!.keywords}
+                onChange={(keywords) => editCopy({ keywords })}
               />
             </div>
           </details>
           <details className="product-editor-section" open>
             <summary>{t('السعر والباقات')}</summary>
             <div className="product-editor-section-body">
-              <Field
-                path="price"
-                label={t('السعر الأصلي بالدرهم')}
-                value={draft.price / 100}
-                type="number"
-                onChange={(v) => patch('price', Math.round(Number(v) * 100))}
-              />
-              <Check
-                label={t('تفعيل سعر عرض')}
-                value={!!draft.presentation?.promotion}
-                onChange={(enabled) =>
-                  patch('presentation', {
-                    ...draft.presentation,
-                    promotion: enabled
-                      ? { price: Math.round(draft.price * 0.9), endsAt: null }
-                      : null,
-                  })
-                }
-              />
-              {draft.presentation?.promotion && (
-                <>
-                  <Field
-                    path="presentation.promotion.price"
-                    label={t('سعر العرض بالدرهم')}
-                    type="number"
-                    value={draft.presentation.promotion.price / 100}
-                    onChange={(value) =>
+              <div className="product-price-grid">
+                <Field
+                  path="price"
+                  label={t('السعر الأصلي بالدرهم')}
+                  value={draft.price / 100}
+                  type="number"
+                  onChange={(v) => patch('price', Math.round(Number(v) * 100))}
+                />
+                <div className="product-sale-field">
+                  <Check
+                    label={t('تفعيل سعر عرض')}
+                    value={!!draft.presentation?.promotion}
+                    onChange={(enabled) =>
                       patch('presentation', {
                         ...draft.presentation,
-                        promotion: {
-                          ...draft.presentation!.promotion!,
-                          price: Math.round(Number(value) * 100),
-                        },
+                        promotion: enabled
+                          ? { price: Math.round(draft.price * 0.9), endsAt: null }
+                          : null,
                       })
                     }
                   />
+                  {draft.presentation?.promotion && (
+                    <Field
+                      path="presentation.promotion.price"
+                      label={t('سعر العرض بالدرهم')}
+                      type="number"
+                      value={draft.presentation.promotion.price / 100}
+                      onChange={(value) =>
+                        patch('presentation', {
+                          ...draft.presentation,
+                          promotion: {
+                            ...draft.presentation!.promotion!,
+                            price: Math.round(Number(value) * 100),
+                          },
+                        })
+                      }
+                    />
+                  )}
+                </div>
+                {draft.presentation?.promotion && (
                   <DeadlineField
                     value={draft.presentation.promotion.endsAt}
                     onChange={(endsAt) =>
@@ -2793,8 +2913,8 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                       })
                     }
                   />
-                </>
-              )}
+                )}
+              </div>
 
               <ProfitPreview
                 product={draft}
@@ -2964,151 +3084,9 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                   )}
                 </div>
               </details>
-              {(pricingSettings.storeLanguages || [pricingSettings.storeLanguage]).length > 1 && (
-                <details className="product-optional-section">
-                  <summary>{t('نسخ المحتوى باللغات')}</summary>
-                  <div className="product-editor-section-body">
-                    <section className="product-translations" aria-label={t('نسخ المحتوى باللغات')}>
-                      <h3>{t('نسخ المحتوى باللغات')}</h3>
-                      <p className="muted">
-                        {t(
-                          'اسم المنتج ووصفه بكل لغة اختياريان. تظهر النسخة المناسبة عند تغيير لغة المتجر؛ ما تتركه فارغًا يستخدم المحتوى الأصلي.',
-                        )}
-                      </p>
-                      <label>
-                        {t('لغة نسخة المنتج')}
-                        <select
-                          aria-label={t('لغة نسخة المنتج')}
-                          value={contentLanguage}
-                          onChange={(event) => setContentLanguage(languageOf(event.target.value))}
-                        >
-                          {languages.map((language) => (
-                            <option value={language} key={language}>
-                              {languageNames[language]}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <p className="muted">{t('الحقول الفارغة تستخدم محتوى المنتج الأصلي.')}</p>
-                      <label>
-                        {t('طريقة عرض الوصف بهذه اللغة')}
-                        <select
-                          aria-label={t('طريقة عرض الوصف بهذه اللغة')}
-                          value={
-                            draft.presentation?.translations?.[contentLanguage]
-                              ?.descriptionFormat || 'text'
-                          }
-                          onChange={(event) => {
-                            const format = event.target.value as 'text' | 'html',
-                              version = draft.presentation?.translations?.[contentLanguage] || {};
-                            patch('presentation', {
-                              ...draft.presentation,
-                              translations: {
-                                ...draft.presentation?.translations,
-                                [contentLanguage]: {
-                                  ...version,
-                                  descriptionFormat: format,
-                                  ...(format === 'html' && !version.descriptionHtml
-                                    ? {
-                                        descriptionHtml: (version.description || '')
-                                          .replace(/&/g, '&amp;')
-                                          .replace(/</g, '&lt;')
-                                          .replace(/>/g, '&gt;')
-                                          .replace(/\n/g, '<br />'),
-                                      }
-                                    : format === 'text' && version.descriptionFormat === 'html'
-                                      ? { description: catalogText(version.descriptionHtml || '') }
-                                      : {}),
-                                },
-                              },
-                            });
-                          }}
-                        >
-                          <option value="text">{t('وصف نصي عادي')}</option>
-                          <option value="html">{t('وصف HTML منسّق')}</option>
-                        </select>
-                      </label>
-                      {(['name', 'description', 'deliveryReturns'] as const).map((key) =>
-                        key === 'description' &&
-                        draft.presentation?.translations?.[contentLanguage]?.descriptionFormat ===
-                          'html' ? (
-                          <RichTextEditor
-                            key={'description-' + contentLanguage}
-                            label={t('وصف المنتج بهذه اللغة')}
-                            language={contentLanguage}
-                            path={
-                              'presentation.translations.' + contentLanguage + '.descriptionHtml'
-                            }
-                            value={
-                              draft.presentation.translations[contentLanguage]?.descriptionHtml ||
-                              ''
-                            }
-                            error={
-                              errors[
-                                'presentation.translations.' + contentLanguage + '.descriptionHtml'
-                              ]?.message
-                            }
-                            request={api}
-                            onChange={(value) =>
-                              patch('presentation', {
-                                ...draft.presentation,
-                                translations: {
-                                  ...draft.presentation?.translations,
-                                  [contentLanguage]: {
-                                    ...draft.presentation?.translations?.[contentLanguage],
-                                    descriptionHtml: value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        ) : (
-                          <Field
-                            key={key}
-                            path={`presentation.translations.${contentLanguage}.${key === 'description' && draft.presentation?.translations?.[contentLanguage]?.descriptionFormat === 'html' ? 'descriptionHtml' : key}`}
-                            label={t(
-                              {
-                                name: 'اسم المنتج بهذه اللغة',
-                                description: 'وصف المنتج بهذه اللغة',
-                                deliveryReturns: 'محتوى التوصيل بهذه اللغة',
-                              }[key],
-                            )}
-                            value={
-                              draft.presentation?.translations?.[contentLanguage]?.[
-                                key === 'description' &&
-                                draft.presentation?.translations?.[contentLanguage]
-                                  ?.descriptionFormat === 'html'
-                                  ? 'descriptionHtml'
-                                  : key
-                              ] || ''
-                            }
-                            type={key === 'name' ? 'text' : 'textarea'}
-                            onChange={(value) =>
-                              patch('presentation', {
-                                ...draft.presentation,
-                                translations: {
-                                  ...draft.presentation?.translations,
-                                  [contentLanguage]: {
-                                    ...draft.presentation?.translations?.[contentLanguage],
-                                    [key === 'description' &&
-                                    draft.presentation?.translations?.[contentLanguage]
-                                      ?.descriptionFormat === 'html'
-                                      ? 'descriptionHtml'
-                                      : key]: value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        ),
-                      )}
-                    </section>
-                  </div>
-                </details>
-              )}
               <details className="product-optional-section">
                 <summary>{t('النشر والمظهر')}</summary>
-                <div className="product-editor-section-body">
+                <div className="product-editor-section-body product-appearance-grid">
                   <Check
                     label={t('إظهار في واجهة المتجر')}
                     value={draft.storefrontVisible !== 0}

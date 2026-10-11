@@ -19,6 +19,7 @@ const language = z.enum(['ar', 'fr', 'en']);
 const translatedProduct = z
   .object({
     name: text(150).optional(),
+    keywords: text(1000).optional(),
     description: text(PRODUCT_DESCRIPTION_LIMIT).optional(),
     descriptionFormat: z.enum(['text', 'html']).optional(),
     descriptionHtml: text(PRODUCT_DESCRIPTION_LIMIT).optional(),
@@ -162,6 +163,7 @@ export const productSchema = z.object({
         .optional(),
       crossSells: z.array(crossSellSchema).max(4).optional(),
       landingLanguage: language.optional(),
+      contentLanguage: language.optional(),
       promotion: z
         .object({
           price: z.number().int().positive().max(100000000),

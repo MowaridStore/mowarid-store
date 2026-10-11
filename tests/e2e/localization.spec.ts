@@ -103,7 +103,10 @@ test('French product policies, manual recommendations, matching cart buttons and
         cartFreeShippingThreshold: 20000,
         contentTranslations: {
           ...settings.contentTranslations,
-          fr: { copy: { 'متابعة التسوق': 'Poursuivre mes achats' } },
+          fr: {
+            returns: 'Retours selon la politique générale de la boutique',
+            copy: { 'متابعة التسوق': 'Poursuivre mes achats' },
+          },
         },
       },
     });
@@ -135,9 +138,7 @@ test('French product policies, manual recommendations, matching cart buttons and
       .filter({ hasText: product.sku })
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
-    await expect(page.getByLabel('محتوى التوصيل والاسترجاع', { exact: true })).toHaveValue(
-      'Livraison personnalisée et retours sur demande',
-    );
+    await expect(page.getByLabel('محتوى التوصيل والاسترجاع', { exact: true })).toHaveCount(0);
     await page.goto('/shop/' + product.slug);
     await expect(page.locator('h1')).toHaveText('Sac quotidien');
     await page
@@ -146,7 +147,7 @@ test('French product policies, manual recommendations, matching cart buttons and
       .click();
     await expect(page.locator('.product-description-panel')).toContainText([
       'Une description française personnalisée',
-      'Livraison personnalisée et retours sur demande',
+      'Retours selon la politique générale de la boutique',
     ]);
     await expect(page.locator('[data-related-products] [data-product-card]')).toHaveCount(1);
     await expect(page.locator('[data-related-products] [data-product-card]')).toHaveAttribute(
@@ -382,15 +383,15 @@ test('merchant edits optional product translations and pins image landing UI ind
       .click();
     await page.getByRole('button', { name: 'طي جميع الأقسام', exact: true }).click();
     await page.getByRole('button', { name: 'فتح جميع الأقسام', exact: true }).click();
-    await expect(page.getByLabel('اسم المنتج بهذه اللغة', { exact: true })).toBeVisible();
-    await page.getByLabel('لغة نسخة المنتج', { exact: true }).selectOption('fr');
-    await page.getByLabel('اسم المنتج بهذه اللغة', { exact: true }).fill('Sac pour les voyages');
-    await page
-      .getByLabel('وصف المنتج بهذه اللغة', { exact: true })
-      .fill('Description française pour les voyages');
-    await page.getByLabel('لغة نسخة المنتج', { exact: true }).selectOption('en');
-    await page.getByLabel('اسم المنتج بهذه اللغة', { exact: true }).fill('');
-    await page.getByLabel('وصف المنتج بهذه اللغة', { exact: true }).fill('');
+    await expect(page.getByLabel('اسم المنتج', { exact: true })).toHaveCount(1);
+    await expect(page.getByText('نسخ المحتوى باللغات', { exact: true })).toHaveCount(0);
+    await page.getByLabel('لغة محتوى المنتج', { exact: true }).selectOption('fr');
+    await page.getByLabel('اسم المنتج', { exact: true }).fill('Sac pour les voyages');
+    await page.getByLabel('الوصف', { exact: true }).fill('Description française pour les voyages');
+    await page.getByLabel('كلمات مفتاحية (اختياري)', { exact: true }).fill('motcampagnefr');
+    await page.getByLabel('لغة محتوى المنتج', { exact: true }).selectOption('en');
+    await page.getByLabel('اسم المنتج', { exact: true }).fill('');
+    await page.getByLabel('الوصف', { exact: true }).fill('');
     await page.getByLabel('لغة اللاندينج باج', { exact: true }).selectOption('fr');
     await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('تم حفظ المنتج.');
@@ -399,6 +400,9 @@ test('merchant edits optional product translations and pins image landing UI ind
     );
     expect(saved.presentation.landingLanguage).toBe('fr');
     expect(saved.presentation.translations.fr.name).toBe('Sac pour les voyages');
+    expect(saved.presentation.translations.fr.keywords).toBe('motcampagnefr');
+    const found = await (await page.request.get('/api/products?q=motcampagnefr')).json();
+    expect(found.some((p: any) => p.id === product.id)).toBe(true);
     expect(saved.image).toBe(product.image);
     expect(saved.blocks).toEqual(product.blocks);
     await page.goto('/shop/' + product.slug + '?lang=ar');

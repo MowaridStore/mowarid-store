@@ -2572,8 +2572,8 @@
     "fr": "Ce produit dépend d’un autre fournisseur. Videz le panier avant de l’ajouter."
   },
   "رابط المنتج": {
-    "en": "Product URL",
-    "fr": "Lien du produit"
+    "fr": "Lien du produit",
+    "en": "Product URL"
   },
   "صورة المنتج": {
     "en": "Product image",
@@ -4930,5 +4930,29 @@
   "يمكنك إضافة باقتين بجانب المنتج الواحد، بكمية لا تقل عن 2.": {
     "fr": "Vous pouvez ajouter deux packs au produit seul, avec une quantité minimale de 2.",
     "en": "You can add two bundles alongside the single product, with a quantity of at least 2."
+  },
+  "نصائح الصور": {
+    "fr": "Conseils pour les images",
+    "en": "Image tips"
+  },
+  "إضافة صور": {
+    "fr": "Ajouter des images",
+    "en": "Add images"
+  },
+  "سيُنشر عند الحفظ": {
+    "fr": "Publié à l’enregistrement",
+    "en": "Published when saved"
+  },
+  "سيُحفظ كمسودة": {
+    "fr": "Enregistré comme brouillon",
+    "en": "Saved as a draft"
+  },
+  "محتوى المنتج": {
+    "fr": "Contenu du produit",
+    "en": "Product content"
+  },
+  "لغة محتوى المنتج": {
+    "fr": "Langue du contenu du produit",
+    "en": "Product content language"
   }
 }

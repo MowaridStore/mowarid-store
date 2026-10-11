@@ -146,6 +146,7 @@ beforeAll(async () => {
   await db.exec(await readFile('migrations/0014_campaign_links.sql', 'utf8'));
   await db.exec(await readFile('migrations/0015_funnel.sql', 'utf8'));
   await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
+  await db.exec(await readFile('migrations/0017_translated_keywords.sql', 'utf8'));
   await db.exec(
     (await readFile('fixtures/demo.sql', 'utf8'))
       .split('\n')
@@ -507,6 +508,7 @@ describe('real Worker runtime and D1 transactions', () => {
     await db.exec(await readFile('migrations/0014_campaign_links.sql', 'utf8'));
     await db.exec(await readFile('migrations/0015_funnel.sql', 'utf8'));
     await db.exec(await readFile('migrations/0016_fixed_bundles.sql', 'utf8'));
+    await db.exec(await readFile('migrations/0017_translated_keywords.sql', 'utf8'));
     for (const key of manifest.parts) {
       const object = await env.BACKUPS.get(key);
       expect(await object!.text()).not.toContain(savedRef);

@@ -98,6 +98,7 @@ export function localizedProduct(p: Product, language: Language): Product {
   return {
     ...p,
     name: translation?.name?.trim() || p.name,
+    keywords: translation?.keywords?.trim() || p.keywords,
     description: translation?.description?.trim() || p.description,
     presentation: {
       ...p.presentation,

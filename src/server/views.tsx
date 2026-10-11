@@ -996,14 +996,8 @@ export function ProductPage({
               {t('التوصيل والاسترجاع')}
               <span>＋</span>
             </summary>
-            {p.presentation?.deliveryReturns ? (
-              <div class="product-description">{p.presentation.deliveryReturns}</div>
-            ) : (
-              <>
-                <p>{t('رسم توصيل واحد لكل طلب. يظهر المبلغ النهائي بعد اختيار مدينتك.')}</p>
-                <p>{s.returns}</p>
-              </>
-            )}
+            <p>{t('رسم توصيل واحد لكل طلب. يظهر المبلغ النهائي بعد اختيار مدينتك.')}</p>
+            <p>{s.returns}</p>
             <a href="/policies/returns">{t('اطّلع على سياسة الاسترجاع ←')}</a>
           </details>
         </div>

@@ -215,3 +215,141 @@ test('manual recommendations show catalog photos and import a new product only a
       });
   }
 });
+test('desktop product inputs share a row and publication sits beside Save, with one multi-image picker', async ({
+  page,
+}) => {
+  const headers = await owner(page, '198.18.14.5');
+  const original = (await (await page.request.get('/api/admin/products')).json()).find(
+    (p: any) => p.id === 'demo-bag',
+  );
+  try {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await editBag(page);
+    const sku = page.locator('[data-field=sku] input'),
+      category = page.locator('[data-field=categoryId] select');
+    const bounds = await Promise.all([sku.boundingBox(), category.boundingBox()]);
+    expect(
+      Math.max(...bounds.map((b) => b!.y)) - Math.min(...bounds.map((b) => b!.y)),
+    ).toBeLessThan(8);
+    await expect(
+      page.locator('.product-save-controls').getByLabel('نشر المنتج', { exact: true }),
+    ).toBeChecked();
+    await expect(page.locator('.product-publish-state')).toContainText('سيُنشر عند الحفظ');
+    await expect(page.getByLabel('نشر المنتج', { exact: true })).toHaveCount(1);
+    await expect(page.locator('.product-media-editor input[type=file]')).toHaveCount(1);
+    await expect(page.locator('.product-media-editor input[type=file]')).toHaveAttribute(
+      'multiple',
+      '',
+    );
+    await expect(page.locator('[data-field=slug] input')).toBeHidden();
+    const basicPanel = page.locator('.product-editor-section').first();
+    await basicPanel.screenshot({ path: 'test-results/compact-product-basics.png' });
+    expect((await basicPanel.boundingBox())!.height).toBeLessThan(450);
+    await page.screenshot({ path: 'test-results/compact-product-desktop.png', fullPage: true });
+    await page.getByLabel('نشر المنتج', { exact: true }).uncheck();
+    await expect(page.locator('.product-publish-state')).toContainText('سيُحفظ كمسودة');
+    await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('تم حفظ المنتج.');
+    expect(
+      (await (await page.request.get('/api/admin/products')).json()).find(
+        (p: any) => p.id === original.id,
+      ).active,
+    ).toBe(0);
+    await editBag(page);
+    await expect(page.getByLabel('نشر المنتج', { exact: true })).not.toBeChecked();
+    const pictures = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d')!;
+      const files = [];
+      for (const color of ['#173d35', '#d08a40']) {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 64, 64);
+        const blob = await new Promise<Blob>((resolve) =>
+          canvas.toBlob((b) => resolve(b!), 'image/png'),
+        );
+        files.push(Array.from(new Uint8Array(await blob.arrayBuffer())));
+      }
+      return files;
+    });
+    const count = await page.locator('.gallery-editor-row').count();
+    await page.locator('.product-media-editor input[type=file]').setInputFiles(
+      pictures.map((bytes, i) => ({
+        name: `image-${i}.png`,
+        mimeType: 'image/png',
+        buffer: Buffer.from(bytes),
+      })),
+    );
+    await expect(page.locator('.gallery-editor-row')).toHaveCount(count + 2);
+    await expect(page.locator('.gallery-editor-row.is-main-image img')).toHaveAttribute(
+      'src',
+      original.image,
+    );
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: 'test-results/compact-product-mobile.png', fullPage: true });
+  } finally {
+    await page.request.put('/api/admin/products/' + original.id, { headers, data: original });
+  }
+});
+test('the single content editor remains compact in Arabic, French and English on desktop and phone', async ({
+  page,
+}) => {
+  const headers = await owner(page, '198.18.14.6');
+  const original = (await (await page.request.get('/api/admin/settings')).json()).settings;
+  const labels = {
+    ar: ['اسم المنتج', 'الوصف', 'كلمات مفتاحية (اختياري)'],
+    fr: ['Nom du produit', 'Description', 'Mots-clés (facultatif)'],
+    en: ['Product name', 'Description', 'Keywords (optional)'],
+  };
+  try {
+    expect(
+      (
+        await page.request.put('/api/admin/settings', {
+          headers,
+          data: { ...original, storeLanguages: ['ar', 'fr', 'en'] },
+        })
+      ).ok(),
+    ).toBe(true);
+    for (const [language, copyLabels] of Object.entries(labels)) {
+      expect(
+        (
+          await page.request.patch('/api/admin/language', {
+            headers,
+            data: { scope: 'admin', language },
+          })
+        ).ok(),
+      ).toBe(true);
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.goto('/admin/products');
+        await page
+          .locator('tbody tr')
+          .filter({ hasText: 'DEMO-A1' })
+          .locator('.admin-product-actions button')
+          .click();
+        await expect(page.locator('.product-copy-editor')).toHaveCount(1);
+        await expect(page.locator('.product-copy-heading select')).toHaveCount(1);
+        for (const label of copyLabels)
+          await expect(page.getByLabel(label, { exact: true })).toHaveCount(1);
+        await page.locator('.product-copy-heading select').selectOption('ar');
+        await expect(page.getByLabel(copyLabels[0], { exact: true })).toHaveAttribute('dir', 'rtl');
+        await page.locator('.product-copy-heading select').selectOption('fr');
+        await expect(page.getByLabel(copyLabels[0], { exact: true })).toHaveAttribute('dir', 'ltr');
+        await page.locator('.product-copy-heading select').selectOption('en');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        await page.screenshot({
+          path: `test-results/compact-editor-${language}-${width}.png`,
+          fullPage: true,
+        });
+      }
+    }
+  } finally {
+    await page.request.put('/api/admin/settings', { headers, data: original });
+  }
+});

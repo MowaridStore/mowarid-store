@@ -188,3 +188,55 @@ it('migrates compatible offers without changing their prices, quantities or save
     await db.prepare('SELECT revision FROM products WHERE id=?').bind('demo-bag').first('revision'),
   ).toBe(8);
 });
+it('keeps independent devices signed in, logs out only one device, and revokes all sessions on a password change', async () => {
+  const login = async (ip: string) => {
+    const response = await post(
+      '/auth/login',
+      { email: 'trainee@example.test', password: 'Store123', turnstileToken: 'login-token' },
+      '',
+      ip,
+    );
+    expect(response.status).toBe(200);
+    return {
+      cookie: response.headers.get('set-cookie')!.split(';')[0],
+      csrf: ((await response.json()) as any).csrf,
+    };
+  };
+  const deviceA = await login('198.18.91.1');
+  const deviceB = await login('198.18.91.2');
+  expect(deviceA.cookie).not.toBe(deviceB.cookie);
+  const account = (cookie: string) =>
+    runtime.dispatchFetch(origin + '/api/admin/account', {
+      headers: { Origin: origin, Cookie: cookie },
+    });
+  expect((await account(deviceA.cookie)).status).toBe(200);
+  expect((await account(deviceB.cookie)).status).toBe(200);
+  const logout = await post('/admin/logout', {}, deviceB.cookie, '198.18.91.2');
+  // A write uses the CSRF token belonging to that device's own session.
+  expect(logout.status).toBe(403);
+  expect(
+    (
+      await runtime.dispatchFetch(origin + '/api/admin/logout', {
+        method: 'POST',
+        headers: { Origin: origin, Cookie: deviceB.cookie, 'X-CSRF-Token': deviceB.csrf },
+      })
+    ).status,
+  ).toBe(200);
+  expect((await account(deviceB.cookie)).status).toBe(401);
+  expect((await account(deviceA.cookie)).status).toBe(200);
+  const deviceC = await login('198.18.91.3');
+  const changed = await runtime.dispatchFetch(origin + '/api/admin/password', {
+    method: 'POST',
+    headers: {
+      Origin: origin,
+      Cookie: deviceA.cookie,
+      'X-CSRF-Token': deviceA.csrf,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ current: 'Store123', password: 'Changed456' }),
+  });
+  expect(changed.status).toBe(200);
+  expect((await account(deviceA.cookie)).status).toBe(401);
+  expect((await account(deviceC.cookie)).status).toBe(401);
+  expect((await account(changed.headers.get('set-cookie')!.split(';')[0])).status).toBe(200);
+});
