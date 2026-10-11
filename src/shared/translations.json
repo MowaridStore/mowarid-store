@@ -4954,5 +4954,17 @@
   "لغة محتوى المنتج": {
     "fr": "Langue du contenu du produit",
     "en": "Product content language"
+  },
+  "سعر الزبون": {
+    "fr": "Prix client",
+    "en": "Customer price"
+  },
+  "سعر المسوق": {
+    "fr": "Prix revendeur",
+    "en": "Marketer price"
+  },
+  "الربح (دون توصيل)": {
+    "fr": "Marge (hors livraison)",
+    "en": "Profit (excluding delivery)"
   }
 }

@@ -2100,6 +2100,35 @@ function Categories({ action }: { action: Action }) {
     </section>
   );
 }
+function CatalogPrices({ catalog }: { catalog: Record<string, any> }) {
+  const cents = (value: unknown) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+    const amount = Math.round(value * 100);
+    return Number.isSafeInteger(amount) ? amount : null;
+  };
+  const customer = cents(catalog.suggested_retail_price),
+    marketer = cents(catalog.fulfillment_price),
+    profit = customer !== null && marketer !== null ? customer - marketer : null;
+  return (
+    <span className="catalog-prices">
+      <span className="catalog-price">
+        <small>{t('سعر الزبون')}</small>
+        <strong>{customer === null ? t('غير متاح') : money(customer)}</strong>
+      </span>
+      <span className="catalog-price">
+        <small>{t('سعر المسوق')}</small>
+        <strong>{marketer === null ? t('غير متاح') : money(marketer)}</strong>
+      </span>
+      <span
+        className={'catalog-price catalog-profit' + (profit !== null && profit < 0 ? ' loss' : '')}
+      >
+        <small>{t('الربح (دون توصيل)')}</small>
+        <strong>{profit === null ? t('غير متاح') : money(profit)}</strong>
+      </span>
+    </span>
+  );
+}
+
 function Products({ action, clearValidation }: { action: Action; clearValidation: () => void }) {
   const [sectionsCollapsed, setSectionsCollapsed] = useState(false);
   const validationFailure = useRef(false);
@@ -2579,6 +2608,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                         {t('كود المنتج:')}
                         {c.sku}
                       </small>
+                      <CatalogPrices catalog={c} />
                       <small>
                         {c.stock_quantity > 0 && c.is_active !== false
                           ? t('متاح للطلب')

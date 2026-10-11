@@ -1,4 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import { money } from '../../src/shared/types';
+import { readFileSync } from 'node:fs';
+const translations = JSON.parse(readFileSync('src/shared/translations.json', 'utf8'));
 test.use({ actionTimeout: 7000 });
 const origin = 'http://localhost:8788';
 async function owner(page: Page, ip: string) {
@@ -16,6 +19,89 @@ async function editBag(page: Page) {
     .filter({ hasText: 'DEMO-A1' })
     .getByRole('button', { name: 'تعديل', exact: true })
     .click();
+}
+for (const language of ['ar', 'fr', 'en'] as const) {
+  test(`catalog cards show supplier customer price, wholesale and profit without delivery in ${language}`, async ({
+    page,
+  }) => {
+    await owner(page, '198.18.15.' + (['ar', 'fr', 'en'].indexOf(language) + 1));
+    const t = (key: string) => (language === 'ar' ? key : translations[key][language]);
+    await page.route('**/api/auth/status', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        json: { ...(await response.json()), adminLanguage: language },
+      });
+    });
+    await page.route('**/api/admin/catalog*', async (route) => {
+      const response = await route.fetch(),
+        body = await response.json();
+      const change = (c: any) => ({
+        ...c,
+        ...(c.sku === 'DEMO-A1'
+          ? { suggested_retail_price: 295, fulfillment_price: 175, minimum_selling_price: 205 }
+          : {}),
+        ...(c.sku === 'DEMO-A2' ? { fulfillment_price: null } : {}),
+        ...(c.sku === 'DEMO-A3'
+          ? { suggested_retail_price: 186.18, fulfillment_price: 160.09 }
+          : {}),
+        ...(c.sku === 'DEMO-B1' ? { fulfillment_price: 0 } : {}),
+      });
+      await route.fulfill({
+        response,
+        json: Array.isArray(body)
+          ? body.map(change)
+          : { ...body, products: body.products.map(change) },
+      });
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/admin/products');
+    await page
+      .locator('tbody tr')
+      .filter({ hasText: 'DEMO-A1' })
+      .getByRole('button', { name: t('تعديل'), exact: true })
+      .click();
+    await page
+      .locator('summary')
+      .filter({ hasText: t('تغيير منتج مورد') + ' · DEMO-A1' })
+      .click();
+    const catalog = page.locator('.catalog-grid').first();
+    const prices = (sku: string) =>
+      catalog.locator('.catalog-card').filter({ hasText: sku }).locator('.catalog-price');
+    const bag = prices('DEMO-A1');
+    await expect(bag).toHaveCount(3);
+    await expect(bag.locator('small')).toHaveText([
+      t('سعر الزبون'),
+      t('سعر المسوق'),
+      t('الربح (دون توصيل)'),
+    ]);
+    await expect(bag.locator('strong')).toHaveText([
+      money(29500, language),
+      money(17500, language),
+      money(12000, language),
+    ]);
+    await expect(prices('DEMO-A2').nth(1)).toContainText(t('غير متاح'));
+    await expect(prices('DEMO-A2').nth(2)).toContainText(t('غير متاح'));
+    await expect(prices('DEMO-A3').nth(2)).toContainText(money(2609, language));
+    await expect(prices('DEMO-B1').nth(1)).toContainText(money(0, language));
+    await expect(prices('DEMO-B1').nth(2)).toContainText(money(9900, language));
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await bag.first().scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      expect(await catalog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+      expect(
+        await bag.evaluateAll((elements) =>
+          elements.every((element) => element.scrollWidth <= element.clientWidth),
+        ),
+      ).toBe(true);
+      await catalog.screenshot({ path: `test-results/catalog-prices-${language}-${width}.png` });
+    }
+  });
 }
 test('settings saving prevents duplicate requests and brings its confirmation into view', async ({
   page,
