@@ -70,6 +70,7 @@ export async function settings(db: D1Database): Promise<Settings> {
     home: { ...defaults.home, ...saved.home },
     theme: { ...defaults.theme, ...saved.theme },
     socials: { ...defaults.socials, ...saved.socials },
+    policyVisibility: { ...defaults.policyVisibility, ...saved.policyVisibility },
     trackingEnabled: !!(
       saved.facebookPixel ||
       saved.tiktokPixel ||

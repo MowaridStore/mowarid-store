@@ -3,6 +3,8 @@ import { pricedProduct, promotionClock, promotionRemaining, tailPricing } from '
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import { safeProductHtml } from './product-content';
+import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
+import { policyHtml } from './policy-content';
 declare const __STYLE_VERSION__: string;
 declare const __STORE_VERSION__: string;
 import type { Settings, Product, FormContent, Category } from '../shared/types';
@@ -225,7 +227,9 @@ export function Layout({
                     <a href="/">{t('الرئيسية')}</a>
                     <a href="/#categories">{t('الأقسام')}</a>
                     <a href="/#products">{t('جميع المنتجات')}</a>
-                    <a href="/policies/contact">{t('تواصل معنا')}</a>
+                    {policyVisible(s, 'contact') && (
+                      <a href="/policies/contact">{t('تواصل معنا')}</a>
+                    )}
                   </nav>
                 </details>
               )}
@@ -243,7 +247,7 @@ export function Layout({
               <nav class="desktop-nav">
                 <a href="/#products">{t('تسوق المنتجات')}</a>
                 {s.home.showPromise && <a href="/#promise">{t('لماذا نحن؟')}</a>}
-                <a href="/policies/contact">{t('تواصل معنا')}</a>
+                {policyVisible(s, 'contact') && <a href="/policies/contact">{t('تواصل معنا')}</a>}
               </nav>
               <div class="header-actions">
                 {!preview && <StoreLanguageSwitcher s={s} />}
@@ -276,21 +280,28 @@ export function Layout({
         {landing ? (
           <footer class="landing-footer">
             <StoreContacts s={s} />
-            <details>
-              <summary>{t('السياسات')}</summary>
-              <p>{s.brand}</p>
-              <nav class="footer-links" aria-label={t('السياسات')}>
-                <a href={policyHref('terms', product || policyFor)}>{t('الشروط')}</a>
-                <a href={policyHref('privacy', product || policyFor)}>{t('الخصوصية')}</a>
-                <a href={policyHref('returns', product || policyFor)}>{t('الاسترجاع')}</a>
-                <a href={policyHref('contact', product || policyFor)}>{t('اتصل بنا')}</a>
-                {s.whatsapp && (
-                  <a href={'https://wa.me/' + s.whatsapp} target="_blank" rel="noopener noreferrer">
-                    {t('واتساب')}
-                  </a>
-                )}
-              </nav>
-            </details>
+            {policyKeys.some((key) => policyVisible(s, key)) && (
+              <details>
+                <summary>{t('السياسات')}</summary>
+                <p>{s.brand}</p>
+                <nav class="footer-links" aria-label={t('السياسات')}>
+                  {policyKeys
+                    .filter((key) => policyVisible(s, key))
+                    .map((key) => (
+                      <a href={policyHref(key, product || policyFor)}>{t(policyLabels[key])}</a>
+                    ))}
+                  {s.whatsapp && (
+                    <a
+                      href={'https://wa.me/' + s.whatsapp}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {t('واتساب')}
+                    </a>
+                  )}
+                </nav>
+              </details>
+            )}
           </footer>
         ) : (
           <>
@@ -306,25 +317,30 @@ export function Layout({
                   {t('الدفع عند الاستلام')}
                 </span>
               </div>
-              <div class="footer-column">
-                <h3>{t('السياسات')}</h3>
-                <div class="footer-links">
-                  <a href="/policies/terms">{t('الشروط')}</a>
-                  <a href="/policies/privacy">{t('الخصوصية')}</a>
-                  <a href="/policies/returns">{t('الاسترجاع')}</a>
-                  <a href="/policies/contact">{t('اتصل بنا')}</a>
+              {policyKeys.some((key) => policyVisible(s, key)) && (
+                <div class="footer-column">
+                  <h3>{t('السياسات')}</h3>
+                  <div class="footer-links">
+                    {policyKeys
+                      .filter((key) => policyVisible(s, key))
+                      .map((key) => (
+                        <a href={policyHref(key)}>{t(policyLabels[key])}</a>
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div class="footer-column">
                 <h3>{t('نحن هنا لمساعدتك')}</h3>
                 <p>{t('استفسار عن منتج أو طلبك؟ تواصل معنا.')}</p>
-                <a
-                  href={s.whatsapp ? 'https://wa.me/' + s.whatsapp : '/policies/contact'}
-                  class="footer-contact"
-                >
-                  <Icon name="phone" size={18} />
-                  {s.whatsapp ? t('تواصل عبر واتساب') : t('اتصل بنا')}
-                </a>
+                {(s.whatsapp || policyVisible(s, 'contact')) && (
+                  <a
+                    href={s.whatsapp ? 'https://wa.me/' + s.whatsapp : '/policies/contact'}
+                    class="footer-contact"
+                  >
+                    <Icon name="phone" size={18} />
+                    {s.whatsapp ? t('تواصل عبر واتساب') : t('اتصل بنا')}
+                  </a>
+                )}
               </div>
               <small>
                 © {new Date().getFullYear()} {s.brand}
@@ -332,6 +348,27 @@ export function Layout({
               </small>
             </footer>
           </>
+        )}
+        {s.turnstileSiteKey && !policyVisible(s, 'privacy') && (
+          <p class="policy-service-disclosure">
+            {t('نستخدم Cloudflare Turnstile للحماية من الطلبات الآلية. تخضع هذه الخدمة إلى')}{' '}
+            <a
+              href="https://www.cloudflare.com/privacypolicy/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('سياسة خصوصية Cloudflare')}
+            </a>{' '}
+            {t('و')}{' '}
+            <a
+              href="https://www.cloudflare.com/turnstile-privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('ملحق خصوصية Turnstile')}
+            </a>
+            .
+          </p>
         )}
         {s.whatsapp && (
           <a
@@ -993,12 +1030,18 @@ export function ProductPage({
           {p.presentation?.descriptionFormat !== 'html' && <DescriptionPanel p={p} s={s} />}
           <details class="product-description-panel">
             <summary>
-              {t('التوصيل والاسترجاع')}
+              {t(policyVisible(s, 'returns') ? 'التوصيل والاسترجاع' : 'التوصيل')}
               <span>＋</span>
             </summary>
             <p>{t('رسم توصيل واحد لكل طلب. يظهر المبلغ النهائي بعد اختيار مدينتك.')}</p>
-            <p>{s.returns}</p>
-            <a href="/policies/returns">{t('اطّلع على سياسة الاسترجاع ←')}</a>
+            {policyVisible(s, 'returns') && (
+              <>
+                <div class="policy-content policy-product-summary">
+                  {raw(policyHtml(s.returns))}
+                </div>
+                <a href="/policies/returns">{t('اطّلع على سياسة الاسترجاع ←')}</a>
+              </>
+            )}
           </details>
         </div>
       </section>
@@ -1242,10 +1285,17 @@ export function OrderForm({
           >
             {f.submitText || formDefault.submitText}
           </button>
-          <p class="muted">
-            {t('بالإرسال توافق على')} <a href={policyHref('terms', p)}>{t('الشروط')}</a> {t('و')}{' '}
-            <a href={policyHref('privacy', p)}>{t('سياسة الخصوصية')}</a>.
-          </p>
+          {(policyVisible(s, 'terms') || policyVisible(s, 'privacy')) && (
+            <p class="muted">
+              {t('بالإرسال توافق على')}{' '}
+              {policyVisible(s, 'terms') && <a href={policyHref('terms', p)}>{t('الشروط')}</a>}
+              {policyVisible(s, 'terms') && policyVisible(s, 'privacy') && <> {t('و')} </>}
+              {policyVisible(s, 'privacy') && (
+                <a href={policyHref('privacy', p)}>{t('سياسة الخصوصية')}</a>
+              )}
+              .
+            </p>
+          )}
         </form>
         <aside class="order-summary">
           <details open class="checkout-summary-details">

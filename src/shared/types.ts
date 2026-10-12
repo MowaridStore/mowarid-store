@@ -283,6 +283,7 @@ export type Settings = {
   shippingOther: number;
   cartFreeShippingThreshold: number;
   autoConfirm: boolean;
+  policyVisibility: Record<'terms' | 'privacy' | 'returns' | 'contact', boolean>;
   terms: string;
   privacy: string;
   returns: string;
@@ -365,6 +366,7 @@ export const defaults: Settings = {
   shippingOther: 3000,
   cartFreeShippingThreshold: 0,
   autoConfirm: false,
+  policyVisibility: { terms: true, privacy: true, returns: true, contact: true },
   terms: 'تُؤكد الطلبات هاتفيًا قبل إرسالها. الدفع عند الاستلام.',
   privacy:
     'نستخدم بياناتك لمعالجة الطلب والتواصل والتوصيل. يمكن طلب حذفها عبر وسيلة التواصل الموضحة.',

@@ -1,4 +1,5 @@
 import { BundlesEditor } from './bundles';
+import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
 import { toLocalDateTime, toUtcDateTime } from './deadline';
 import { pricedProduct } from '../shared/commerce';
@@ -1029,11 +1030,13 @@ function Login({
             )}
           </>
         )}
-        <p className="login-privacy">
-          <a href="/policies/privacy" target="_blank" rel="noreferrer">
-            {t('سياسة الخصوصية')}
-          </a>
-        </p>
+        {auth.privacyVisible !== false && (
+          <p className="login-privacy">
+            <a href="/policies/privacy" target="_blank" rel="noreferrer">
+              {t('سياسة الخصوصية')}
+            </a>
+          </p>
+        )}
       </section>
     </main>
   );
@@ -1645,19 +1648,38 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
               <p className="muted wide">
                 {t('رسم واحد للطلب كاملًا. عرض الشحن المجاني يعفي السلة كاملة.')}
               </p>
-              {(['terms', 'privacy', 'returns', 'contact'] as const).map((k) =>
-                field(
-                  k,
-                  {
-                    terms: t('الشروط'),
-                    privacy: t('الخصوصية'),
-                    returns: t('الاسترجاع'),
-                    contact: t('اتصل بنا'),
-                  }[k],
-                  'textarea',
-                  true,
-                ),
-              )}
+              <section className="wide policy-settings">
+                <h2>{t('صفحات المتجر')}</h2>
+                <p className="muted">
+                  {t(
+                    'اختر الصفحات التي تظهر للزائر. تعطيل الصفحة يخفي رابطها ويوقف فتحها، مع الاحتفاظ بالنص لإعادة تفعيلها لاحقًا.',
+                  )}
+                </p>
+                <p className="muted">
+                  {t(
+                    'نسّق النص باستخدام # للعناوين، و**نص** للخط العريض، و- للقوائم. يظهر التنسيق تلقائيًا في صفحة المتجر.',
+                  )}
+                </p>
+                {policyKeys.map((key) => (
+                  <div className="policy-setting" key={key}>
+                    <Check
+                      label={t('إظهار صفحة {page}', { page: t(policyLabels[key]) })}
+                      value={policyVisible(s, key)}
+                      onChange={(enabled) =>
+                        setS({
+                          ...s,
+                          policyVisibility: {
+                            ...defaults.policyVisibility,
+                            ...s.policyVisibility,
+                            [key]: enabled,
+                          },
+                        })
+                      }
+                    />
+                    {field(key, t(policyLabels[key]), 'textarea', true)}
+                  </div>
+                ))}
+              </section>
             </>
           ) : kind === 'pixels' ? (
             <>

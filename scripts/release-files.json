@@ -162,5 +162,9 @@
   "wrangler.pages.toml",
   "wrangler.toml",
   "wrangler.worker.toml",
-  "tests/deployment-resources.test.ts"
+  "tests/deployment-resources.test.ts",
+  "src/shared/policies.ts",
+  "src/server/policy-content.ts",
+  "tests/policies.test.ts",
+  "tests/e2e/policies.spec.ts"
 ]

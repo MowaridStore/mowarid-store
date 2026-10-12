@@ -266,6 +266,15 @@ const baseSettingsSchema = z
     shippingOther: z.number().int().min(0).max(100000),
     cartFreeShippingThreshold: z.number().int().min(0).max(100000000).default(0),
     autoConfirm: z.boolean(),
+    policyVisibility: z
+      .object({
+        terms: z.boolean().default(true),
+        privacy: z.boolean().default(true),
+        returns: z.boolean().default(true),
+        contact: z.boolean().default(true),
+      })
+      .strict()
+      .default(defaults.policyVisibility),
     terms: text(10000),
     privacy: text(10000),
     returns: text(10000),

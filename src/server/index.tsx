@@ -19,6 +19,9 @@ import { settings, products, productBySlug, categories, cartProducts } from './d
 import { DomainError } from '../shared/domain';
 import { RemoteError } from './mowarid';
 import { Layout, Home, ProductPage, OrderForm } from './views';
+import { raw } from 'hono/html';
+import { policyVisible } from '../shared/policies';
+import { policyHtml } from './policy-content';
 import { api } from './api';
 import { instrument } from './usage';
 import { searchProducts } from './search';
@@ -247,7 +250,8 @@ for (const path of ['/policies/:type', '/offers/:slug/policies/:type'])
         contact: 'اتصل بنا',
       };
     const t = translator(s.storeLanguage, s.contentTranslations?.[s.storeLanguage]?.copy);
-    if (!Object.hasOwn(labels, type)) return c.notFound();
+    if (!Object.hasOwn(labels, type) || !policyVisible(s, type)) return c.notFound();
+    c.header('Cache-Control', 'no-store');
     return c.html(
       <Layout
         pageUrl={c.req.url}
@@ -258,25 +262,34 @@ for (const path of ['/policies/:type', '/offers/:slug/policies/:type'])
         development={c.env.ENVIRONMENT === 'development'}
       >
         <main class="policy">
-          <h1>{t(labels[type])}</h1>
-          <p>{s[type]}</p>
-          {type === 'privacy' && s.turnstileSiteKey && (
-            <p>
-              {t('نستخدم Cloudflare Turnstile للحماية من الطلبات الآلية. تخضع هذه الخدمة إلى')}{' '}
-              <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">
-                {t('سياسة خصوصية Cloudflare')}
-              </a>{' '}
-              {t('و')}
-              <a
-                href="https://www.cloudflare.com/turnstile-privacy-policy/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t('ملحق خصوصية Turnstile')}
-              </a>
-              .
-            </p>
-          )}
+          <article class="policy-card">
+            <header class="policy-heading">
+              <p>{s.brand}</p>
+              <h1>{t(labels[type])}</h1>
+            </header>
+            <div class="policy-content">{raw(policyHtml(s[type]))}</div>
+            {type === 'privacy' && s.turnstileSiteKey && (
+              <p class="policy-disclosure">
+                {t('نستخدم Cloudflare Turnstile للحماية من الطلبات الآلية. تخضع هذه الخدمة إلى')}{' '}
+                <a
+                  href="https://www.cloudflare.com/privacypolicy/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t('سياسة خصوصية Cloudflare')}
+                </a>{' '}
+                {t('و')}
+                <a
+                  href="https://www.cloudflare.com/turnstile-privacy-policy/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t('ملحق خصوصية Turnstile')}
+                </a>
+                .
+              </p>
+            )}
+          </article>
         </main>
       </Layout>,
     );

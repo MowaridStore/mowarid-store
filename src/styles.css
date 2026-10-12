@@ -812,13 +812,184 @@ dialog::backdrop {
   opacity: 1;
 }
 .policy {
-  max-width: 800px;
-  padding: 60px 25px;
+  max-width: 920px;
+  padding: 48px 20px 64px;
   margin: auto;
   min-height: 50vh;
 }
-.policy p {
+.policy-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: clamp(24px, 5vw, 48px);
+}
+.policy-heading {
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.policy-heading p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.policy-heading h1 {
+  font-size: clamp(26px, 4vw, 36px);
+  line-height: 1.5;
+  font-weight: 700;
+}
+.policy-content {
+  font-size: 16px;
+  line-height: 1.95;
+  overflow-wrap: anywhere;
+}
+.policy-content > :first-child {
+  margin-top: 0;
+}
+.policy-content > :last-child {
+  margin-bottom: 0;
+}
+.policy-content p {
+  margin: 0 0 18px;
+  white-space: normal;
+}
+.policy-content h2,
+.policy-content h3,
+.policy-content h4,
+.policy-content h5,
+.policy-content h6 {
+  margin: 30px 0 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.policy-content h2 {
+  font-size: 24px;
+}
+.policy-content h3 {
+  font-size: 20px;
+}
+.policy-content h4,
+.policy-content h5,
+.policy-content h6 {
+  font-size: 18px;
+}
+.policy-content strong {
+  font-weight: 700;
+}
+.policy-content ul,
+.policy-content ol {
+  padding-inline-start: 26px;
+  margin: 16px 0 22px;
+}
+.policy-content ul {
+  list-style: disc;
+}
+.policy-content ol {
+  list-style: decimal;
+}
+.policy-content li {
+  padding-inline-start: 4px;
+  margin: 6px 0;
+}
+.policy-content li p {
+  margin-bottom: 6px;
+}
+.policy-content a,
+.policy-disclosure a,
+.policy-service-disclosure a {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  unicode-bidi: isolate;
+}
+.policy-content blockquote {
+  border-inline-start: 3px solid var(--green);
+  background: var(--cream);
+  padding: 16px 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+}
+.policy-content hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 28px 0;
+}
+.policy-content pre {
   white-space: pre-wrap;
+  background: var(--cream);
+  padding: 16px;
+  border-radius: 8px;
+}
+.policy-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+.policy-content th,
+.policy-content td {
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  text-align: start;
+}
+.policy-disclosure,
+.policy-service-disclosure {
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 28px;
+}
+.policy-service-disclosure {
+  max-width: 880px;
+  margin: 20px auto;
+  padding: 20px;
+}
+.policy-product-summary {
+  font-size: 14px;
+}
+.policy-product-summary h2,
+.policy-product-summary h3 {
+  font-size: 18px;
+}
+.policy-settings {
+  display: grid;
+  gap: 18px;
+}
+.policy-settings h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.policy-setting {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.policy-setting textarea {
+  min-height: 180px;
+  line-height: 1.8;
+}
+@media (max-width: 600px) {
+  .policy {
+    padding: 24px 12px 40px;
+  }
+  .policy-card {
+    padding: 24px 18px;
+    border-radius: 14px;
+  }
+  .policy-content {
+    font-size: 16px;
+  }
+  .policy-content h2 {
+    font-size: 22px;
+  }
+  .policy-setting {
+    padding: 14px;
+  }
 }
 .empty-state {
   padding: 35px;

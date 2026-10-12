@@ -1442,5 +1442,21 @@
   "الباقة": {
     "fr": "Pack",
     "en": "Bundle"
+  },
+  "صفحات المتجر": {
+    "en": "Store pages",
+    "fr": "Pages de la boutique"
+  },
+  "إظهار صفحة {page}": {
+    "en": "Show the {page} page",
+    "fr": "Afficher la page {page}"
+  },
+  "اختر الصفحات التي تظهر للزائر. تعطيل الصفحة يخفي رابطها ويوقف فتحها، مع الاحتفاظ بالنص لإعادة تفعيلها لاحقًا.": {
+    "en": "Choose which pages visitors can see. Disabling a page hides its links and prevents access, while keeping its text for later.",
+    "fr": "Choisissez les pages visibles. Désactiver une page masque ses liens et bloque son accès, tout en conservant son texte pour la réactiver."
+  },
+  "نسّق النص باستخدام # للعناوين، و**نص** للخط العريض، و- للقوائم. يظهر التنسيق تلقائيًا في صفحة المتجر.": {
+    "en": "Use # for headings, **text** for bold, and - for lists. Formatting appears automatically on the store page.",
+    "fr": "Utilisez # pour les titres, **texte** pour le gras et - pour les listes. La mise en forme apparaît automatiquement sur la page."
   }
 }

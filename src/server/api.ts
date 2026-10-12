@@ -1,4 +1,5 @@
 import { validNewPassword, PASSWORD_HINT } from '../shared/password';
+import { policyVisible } from '../shared/policies';
 import { safeProducts, reviewPrices } from './price-safety';
 import { maximumShipping, shippingCosts } from './shipping-policy';
 import { businessDate, businessStart, nextDay } from '../shared/time';
@@ -226,6 +227,7 @@ api.get('/auth/status', async (c) => {
     authenticated: !!ss,
     csrf: ss?.csrf,
     turnstileSiteKey: s.turnstileSiteKey,
+    privacyVisible: policyVisible(s, 'privacy'),
     development: c.env.ENVIRONMENT === 'development',
     brand: s.brand,
     logo: s.logo,
