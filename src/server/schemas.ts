@@ -27,6 +27,21 @@ const translatedProduct = z
   })
   .strict();
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const landingFormAppearanceSchema = z
+  .object({
+    background: color.optional(),
+    surface: color.optional(),
+    text: color.optional(),
+    muted: color.optional(),
+    fieldBackground: color.optional(),
+    fieldText: color.optional(),
+    placeholder: color.optional(),
+    border: color.optional(),
+    accent: color.optional(),
+    buttonBackground: color.optional(),
+    buttonText: color.optional(),
+  })
+  .strict();
 const url = z
   .string()
   .max(2000)
@@ -163,6 +178,7 @@ export const productSchema = z.object({
         .optional(),
       crossSells: z.array(crossSellSchema).max(4).optional(),
       landingLanguage: language.optional(),
+      landingFormAppearance: landingFormAppearanceSchema.optional(),
       contentLanguage: language.optional(),
       promotion: z
         .object({

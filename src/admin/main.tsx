@@ -1,6 +1,7 @@
 import { BundlesEditor } from './bundles';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
+import { landingFormAppearance, landingAppearanceLabels } from '../shared/landing-appearance';
 import { toLocalDateTime, toUtcDateTime } from './deadline';
 import { pricedProduct } from '../shared/commerce';
 import { keepAccordionHeader } from './accordion';
@@ -2296,6 +2297,10 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
   };
   const prepareProduct = (p: Product): Product => {
     const next = structuredClone(p);
+    next.presentation = {
+      ...next.presentation,
+      landingFormAppearance: landingFormAppearance(next, pricingSettings),
+    };
     if (
       next.presentation?.bundleMode === undefined &&
       next.offers.length &&
@@ -2304,7 +2309,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
       next.presentation = { ...next.presentation, bundleMode: true, quantityPricing: undefined };
     return next;
   };
-  const fresh = (): Product => emptyProduct(storeLanguage);
+  const fresh = (): Product => prepareProduct(emptyProduct(storeLanguage));
   const patch = (key: keyof Product, value: unknown) => {
     if (validationFailure.current) {
       clearValidation();
@@ -3180,17 +3185,10 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                   </p>
                   <Field
                     path="color"
-                    label={t('لون الأزرار')}
+                    label={t('لون أزرار المنتج العادي')}
                     value={draft.color}
                     type="color"
                     onChange={(v) => patch('color', v)}
-                  />
-                  <Field
-                    path="formColor"
-                    label={t('خلفية الاستمارة')}
-                    value={draft.formColor}
-                    type="color"
-                    onChange={(v) => patch('formColor', v)}
                   />
                 </div>
               </details>
@@ -3289,6 +3287,38 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 )}
               </p>
             </div>
+            <details className="landing-form-appearance" open>
+              <summary>{t('ألوان استمارة الهبوط')}</summary>
+              <p className="muted">
+                {t(
+                  'ألوان خاصة بصفحة هبوط هذا المنتج فقط. لا تغيّر استمارة المنتج العادي أو صفحات المنتجات الأخرى.',
+                )}
+              </p>
+              <div className="settings-grid">
+                {Object.entries(landingAppearanceLabels).map(([key, label]) => (
+                  <Field
+                    key={key}
+                    path={'presentation.landingFormAppearance.' + key}
+                    label={t(label)}
+                    type="color"
+                    value={
+                      landingFormAppearance(draft, pricingSettings)[
+                        key as keyof typeof landingAppearanceLabels
+                      ]
+                    }
+                    onChange={(value) =>
+                      patch('presentation', {
+                        ...draft.presentation,
+                        landingFormAppearance: {
+                          ...landingFormAppearance(draft, pricingSettings),
+                          [key]: value,
+                        },
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </details>
             <div className="toolbar landing-editor-actions">
               {(['IMAGE', 'CTA', 'ORDER_FORM'] as const).map((type) => (
                 <button

@@ -9,6 +9,7 @@ export type ProductPresentation = ProductDescription & {
   crossSells?: CrossSell[];
   promotion?: { price: number; endsAt?: string | null; startsAt?: string | null } | null;
   landingLanguage?: Language;
+  landingFormAppearance?: Partial<LandingFormAppearance>;
   contentLanguage?: Language;
   deliveryReturns?: string;
   recommendationMode?: 'auto' | 'manual' | 'hidden';
@@ -32,6 +33,19 @@ export type StoreContent = Partial<
   >
 > & { home?: Partial<Settings['home']>; copy?: Record<string, string> };
 export const PRODUCT_DESCRIPTION_LIMIT = 20000;
+export type LandingFormAppearance = {
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  fieldBackground: string;
+  fieldText: string;
+  placeholder: string;
+  border: string;
+  accent: string;
+  buttonBackground: string;
+  buttonText: string;
+};
 export type FormContent = {
   formTitle?: string;
   formSubtitle?: string;

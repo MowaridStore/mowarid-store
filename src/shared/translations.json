@@ -5018,5 +5018,61 @@
   "المنتج المميز يظهر قبل المنتجات غير المميزة، وتظهر على بطاقته شارة التميّز. يجب حفظه ونشره وإظهاره في المتجر.": {
     "en": "Featured products appear before other products and show a badge on their card. Save, publish and display the product in the store.",
     "fr": "Les produits mis en avant apparaissent avant les autres et portent un badge. Enregistrez, publiez et affichez le produit dans la boutique."
+  },
+  "لون أزرار المنتج العادي": {
+    "en": "Regular product button color",
+    "fr": "Couleur des boutons du produit classique"
+  },
+  "ألوان استمارة الهبوط": {
+    "en": "Landing form colors",
+    "fr": "Couleurs du formulaire de la page de destination"
+  },
+  "ألوان خاصة بصفحة هبوط هذا المنتج فقط. لا تغيّر استمارة المنتج العادي أو صفحات المنتجات الأخرى.": {
+    "en": "Colors apply only to this product’s landing page. The regular checkout and other products stay unchanged.",
+    "fr": "Ces couleurs concernent uniquement la page de destination de ce produit. Elles ne modifient pas le formulaire classique ni les autres produits."
+  },
+  "خلفية منطقة الطلب": {
+    "en": "Order section background",
+    "fr": "Fond de la section de commande"
+  },
+  "خلفية الاستمارة والملخص والباقات": {
+    "en": "Form, summary and bundle card background",
+    "fr": "Fond du formulaire, du récapitulatif et des lots"
+  },
+  "لون العناوين والنصوص": {
+    "en": "Heading and text color",
+    "fr": "Couleur des titres et des textes"
+  },
+  "لون النصوص الثانوية": {
+    "en": "Secondary text color",
+    "fr": "Couleur du texte secondaire"
+  },
+  "خلفية الخانات": {
+    "en": "Field background",
+    "fr": "Fond des champs"
+  },
+  "لون النص داخل الخانات": {
+    "en": "Field text color",
+    "fr": "Couleur du texte des champs"
+  },
+  "لون النص الإرشادي داخل الخانات": {
+    "en": "Placeholder color",
+    "fr": "Couleur du texte indicatif"
+  },
+  "لون حدود الخانات والبطاقات": {
+    "en": "Field and card border color",
+    "fr": "Couleur des bordures des champs et des cartes"
+  },
+  "لون تحديد الباقة المختارة": {
+    "en": "Selected bundle highlight color",
+    "fr": "Couleur de sélection du lot"
+  },
+  "خلفية زر تأكيد الطلب": {
+    "en": "Confirm order button background",
+    "fr": "Fond du bouton de confirmation"
+  },
+  "لون نص زر تأكيد الطلب": {
+    "en": "Confirm order button text color",
+    "fr": "Couleur du texte du bouton de confirmation"
   }
 }

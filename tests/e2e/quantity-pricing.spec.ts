@@ -118,15 +118,31 @@ test('fixed bundles stay within three choices and match product, basket, direct 
     await expect(page.locator('#total')).toContainText('260');
     await expect(page.locator('[data-direct-quantity]')).toHaveCount(0);
     await expect(page.locator('[data-bundle-quantity] option')).toHaveCount(3);
+    await expect(page.locator('[data-bundle-quantity] option[value="2"]')).toContainText(
+      'توصيل مجاني',
+    );
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toHaveText(
+      'توصيل مجاني مع هذا العرض',
+    );
+    await expect(page.locator('#shipping')).toHaveText('مجاني');
     await page.locator('[data-bundle-quantity]').selectOption('3');
     await expect(page.locator('#subtotal')).toContainText('360');
     await expect(page.locator('#shipping')).toContainText('30');
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toHaveCount(0);
+    await page.locator('[data-bundle-quantity]').selectOption('2');
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toBeVisible();
+    await expect(page.locator('#shipping')).toHaveText('مجاني');
     await page.goto('/shop/' + bag.slug);
     await page.locator('input[name=offer][value=bundle-two]').check();
     await page.locator('#add-offer').click();
     await page.goto('/checkout');
     await expect(page.locator('#total')).toContainText('260');
+    await expect(
+      page.locator('#checkout-items [data-bundle-quantity] option[value="2"]'),
+    ).toContainText('توصيل مجاني');
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toBeVisible();
     await page.locator('#checkout-items [data-bundle-quantity]').selectOption('3');
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toHaveCount(0);
     await expect(page.locator('#subtotal')).toContainText('360');
     expect(
       (
@@ -143,7 +159,12 @@ test('fixed bundles stay within three choices and match product, basket, direct 
     await expect(page.locator('#subtotal')).toContainText('260');
     await expect(page.locator('#shipping')).toHaveText('مجاني');
     await expect(page.locator('#total')).toContainText('260');
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toBeVisible();
+    await expect(
+      page.locator('#checkout-items [data-bundle-quantity] option[value="2"]'),
+    ).toContainText('توصيل مجاني');
     await page.locator('input[name=offer][value=bundle-three]').check();
+    await expect(page.locator('#checkout-items .bundle-shipping-benefit')).toHaveCount(0);
     await expect(page.locator('#subtotal')).toContainText('360');
     await expect(page.locator('#total')).toContainText('390');
     const current = (await (await page.request.get('/api/products')).json()).find(

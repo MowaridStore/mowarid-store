@@ -5,6 +5,7 @@ import { raw } from 'hono/html';
 import { safeProductHtml } from './product-content';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { policyHtml } from './policy-content';
+import { landingFormAppearance } from '../shared/landing-appearance';
 declare const __STYLE_VERSION__: string;
 declare const __STORE_VERSION__: string;
 import type { Settings, Product, FormContent, Category } from '../shared/types';
@@ -1124,13 +1125,35 @@ export function OrderForm({
 
   const formDefault = localizedForm(s);
   const f = localizedForm(s, content);
+  const appearance = p?.pageMode === 'landing' ? landingFormAppearance(p, s) : null;
   return (
     <section
       id="order-form"
-      class={'checkout-section' + (!p ? ' cart-checkout-section' : '')}
-      style={{
-        background: !p?.formColor || p.formColor === '#f3f0e9' ? 'var(--cream)' : p.formColor,
-      }}
+      class={
+        'checkout-section' +
+        (!p ? ' cart-checkout-section' : '') +
+        (appearance ? ' landing-order-form' : '')
+      }
+      style={
+        appearance
+          ? {
+              background: appearance.background,
+              color: appearance.text,
+              '--ink': appearance.text,
+              '--green': appearance.text,
+              '--muted': appearance.muted,
+              '--surface': appearance.surface,
+              '--cream': appearance.background,
+              '--line': appearance.border,
+              '--landing-field-background': appearance.fieldBackground,
+              '--landing-field-text': appearance.fieldText,
+              '--landing-placeholder': appearance.placeholder,
+              '--landing-accent': appearance.accent,
+              '--landing-button-background': appearance.buttonBackground,
+              '--landing-button-text': appearance.buttonText,
+            }
+          : { background: 'var(--cream)' }
+      }
     >
       {!p && (
         <div class="checkout-progress">
@@ -1281,7 +1304,11 @@ export function OrderForm({
             type="submit"
             disabled={preview}
             class="primary submit-order"
-            style={{ background: buttonColor(p?.color) }}
+            style={
+              appearance
+                ? { background: appearance.buttonBackground, color: appearance.buttonText }
+                : { background: buttonColor(p?.color) }
+            }
           >
             {f.submitText || formDefault.submitText}
           </button>

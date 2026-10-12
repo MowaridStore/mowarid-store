@@ -204,3 +204,115 @@ test('featured products get their badge and priority, and bundle profit shows th
       ).toBe(true);
   }
 });
+
+test('landing form colors persist independently of regular checkout and another product', async ({
+  page,
+}) => {
+  const headers = await owner(page);
+  const rows = await (await page.request.get('/api/admin/products')).json();
+  const bag = rows.find((p: any) => p.id === 'demo-bag');
+  const candle = rows.find((p: any) => p.id === 'demo-candle');
+  const colors: Record<string, string> = {
+    'خلفية منطقة الطلب': '#eed2db',
+    'خلفية الاستمارة والملخص والباقات': '#fff0f4',
+    'لون العناوين والنصوص': '#572239',
+    'لون النصوص الثانوية': '#805766',
+    'خلفية الخانات': '#fff8fb',
+    'لون النص داخل الخانات': '#43152d',
+    'لون النص الإرشادي داخل الخانات': '#886478',
+    'لون حدود الخانات والبطاقات': '#c798ad',
+    'لون تحديد الباقة المختارة': '#af3971',
+    'خلفية زر تأكيد الطلب': '#95205b',
+    'لون نص زر تأكيد الطلب': '#fff1d5',
+  };
+  const appearance = async () =>
+    page.locator('#order-form').evaluate((el) => {
+      const input = el.querySelector('input[name=name]')!;
+      const button = el.querySelector('.submit-order')!;
+      const css = (node: Element) => getComputedStyle(node);
+      return {
+        background: css(el).backgroundColor,
+        surface: css(el.querySelector('#checkout-form')!).backgroundColor,
+        text: css(el).color,
+        fieldBackground: css(input).backgroundColor,
+        fieldText: css(input).color,
+        placeholder: getComputedStyle(input, '::placeholder').color,
+        border: css(input).borderColor,
+        buttonBackground: css(button).backgroundColor,
+        buttonText: css(button).color,
+      };
+    });
+  try {
+    await page.goto('/checkout?product=' + bag.id);
+    const regular = await appearance();
+    await page.goto('/offers/' + candle.slug);
+    const other = await appearance();
+    await edit(page, bag.sku);
+    await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
+    const editor = page.locator('.landing-form-appearance');
+    for (const [label, color] of Object.entries(colors)) {
+      await editor.getByLabel(label, { exact: true }).evaluate((el, value) => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, color);
+      await expect(editor.getByLabel(label, { exact: true })).toHaveValue(color);
+    }
+    await page.getByRole('button', { name: 'معاينة صفحة الهبوط', exact: true }).click();
+    const preview = page.frameLocator('iframe[title="معاينة صفحة المنتج"]');
+    await expect(preview.locator('#order-form')).toHaveCSS(
+      'background-color',
+      'rgb(238, 210, 219)',
+    );
+    await page.getByRole('button', { name: 'إغلاق المعاينة', exact: true }).click();
+    await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('تم حفظ المنتج.');
+    const saved = (await (await page.request.get('/api/admin/products')).json()).find(
+      (p: any) => p.id === bag.id,
+    );
+    expect(saved.presentation.landingFormAppearance.background).toBe('#eed2db');
+    await page.goto('/offers/' + bag.slug);
+    expect(await appearance()).toEqual({
+      background: 'rgb(238, 210, 219)',
+      surface: 'rgb(255, 240, 244)',
+      text: 'rgb(87, 34, 57)',
+      fieldBackground: 'rgb(255, 248, 251)',
+      fieldText: 'rgb(67, 21, 45)',
+      placeholder: 'rgb(136, 100, 120)',
+      border: 'rgb(199, 152, 173)',
+      buttonBackground: 'rgb(149, 32, 91)',
+      buttonText: 'rgb(255, 241, 213)',
+    });
+    await expect(page.locator('.order-summary')).toHaveCSS(
+      'background-color',
+      'rgb(255, 240, 244)',
+    );
+    await expect(page.locator('.offer-card').first()).toHaveCSS(
+      'border-color',
+      'rgb(175, 57, 113)',
+    );
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.screenshot({
+        path: 'test-results/landing-colors-' + width + '.png',
+        fullPage: true,
+      });
+    }
+    await page.goto('/checkout?product=' + bag.id);
+    expect(await appearance()).toEqual(regular);
+    await page.goto('/offers/' + candle.slug);
+    expect(await appearance()).toEqual(other);
+    await edit(page, bag.sku);
+    await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
+    await expect(editor.getByLabel('لون النص داخل الخانات', { exact: true })).toHaveValue(
+      '#43152d',
+    );
+  } finally {
+    expect(
+      (await page.request.put('/api/admin/products/' + bag.id, { headers, data: bag })).ok(),
+    ).toBe(true);
+  }
+});

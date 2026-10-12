@@ -323,7 +323,7 @@ function bundleControls(l: LocalCartLine, direct: boolean) {
       const priced = quantityPrice(p, quantity);
       const label =
         priced.label || (quantity === 1 ? p.bundleLabel : '') || t('الكمية') + ': ' + quantity;
-      return `<option value="${quantity}" ${quantity === l.quantity ? 'selected' : ''}>${escape(label)} · ${money(priced.total)}</option>`;
+      return `<option value="${quantity}" ${quantity === l.quantity ? 'selected' : ''}>${escape(label)} · ${money(priced.total)}${priced.freeShipping ? ' ' + escape(t('· توصيل مجاني')) : ''}</option>`;
     });
   if (!values.includes(l.quantity))
     options.unshift(
@@ -335,7 +335,7 @@ function linesHtml(lines: LocalCartLine[], editable = true, direct = false) {
   return lines
     .map(
       (l) =>
-        `<div class="cart-line">${l.image ? `<img class="cart-line-image" src="${escape(l.image)}" alt="" width="64" height="64" loading="lazy">` : ''}<div class="cart-line-info"><b>${escape((reviewProducts || config.products).find((product) => product.id === l.productId)?.name || l.name)}</b><small>${l.offerLabel ? escape(l.offerLabel) + ' · ' : ''}${money(l.offerId && l.subtotal !== undefined ? l.subtotal : l.unitPrice * l.quantity)}</small><div class="quantity-controls">${editable && config.products.find((p) => p.id === l.productId)?.bundleMode ? bundleControls(l, direct) : !editable || l.offerId.startsWith('checkout:') ? `<span>${escape(t('الكمية'))}: ${l.quantity}</span>` : `<button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="-1" aria-label="${escape(t('تقليل الكمية'))}">−</button><span>${l.quantity}</span><button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="1" aria-label="${escape(t('زيادة الكمية'))}">+</button>`}</div></div>${editable && !direct ? `<button type="button" class="remove-line" data-remove="${escape(l.sku)}" aria-label="${escape(t('حذف المنتج'))}">×</button>` : ''}</div>`,
+        `<div class="cart-line">${l.image ? `<img class="cart-line-image" src="${escape(l.image)}" alt="" width="64" height="64" loading="lazy">` : ''}<div class="cart-line-info"><b>${escape((reviewProducts || config.products).find((product) => product.id === l.productId)?.name || l.name)}</b><small>${l.offerLabel ? escape(l.offerLabel) + ' · ' : ''}${money(l.offerId && l.subtotal !== undefined ? l.subtotal : l.unitPrice * l.quantity)}</small>${l.freeShipping ? `<span class="bundle-shipping-benefit">${escape(t('توصيل مجاني مع هذا العرض'))}</span>` : ''}<div class="quantity-controls">${editable && config.products.find((p) => p.id === l.productId)?.bundleMode ? bundleControls(l, direct) : !editable || l.offerId.startsWith('checkout:') ? `<span>${escape(t('الكمية'))}: ${l.quantity}</span>` : `<button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="-1" aria-label="${escape(t('تقليل الكمية'))}">−</button><span>${l.quantity}</span><button type="button" ${direct ? 'data-direct-quantity' : 'data-quantity'}="${escape(l.sku)}" data-change="1" aria-label="${escape(t('زيادة الكمية'))}">+</button>`}</div></div>${editable && !direct ? `<button type="button" class="remove-line" data-remove="${escape(l.sku)}" aria-label="${escape(t('حذف المنتج'))}">×</button>` : ''}</div>`,
     )
     .join('');
 }
@@ -520,7 +520,7 @@ function renderCheckout(html: string) {
               .filter((o) => !p.bundleMode || o.quantity <= p.stock)
               .map(
                 (offer) =>
-                  `<label class="offer-card"><input type="radio" name="offer" value="${escape(offer.id)}" ${offer.id === chosenOffer ? 'checked' : ''}><span><b>${escape(offer.label || t('الكمية') + ': ' + offer.quantity)}</b><small>${escape(t('الكمية'))}: ${offer.quantity} ${offer.freeShipping ? escape(t('· شحن مجاني')) : ''}</small></span><strong>${money(offer.total)}</strong></label>`,
+                  `<label class="offer-card"><input type="radio" name="offer" value="${escape(offer.id)}" ${offer.id === chosenOffer ? 'checked' : ''}><span><b>${escape(offer.label || t('الكمية') + ': ' + offer.quantity)}</b><small>${escape(t('الكمية'))}: ${offer.quantity} ${offer.freeShipping ? escape(t('· توصيل مجاني')) : ''}</small></span><strong>${money(offer.total)}</strong></label>`,
               )
               .join('')
           : '';
