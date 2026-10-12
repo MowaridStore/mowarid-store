@@ -333,6 +333,7 @@ export type Settings = {
     heroButtonText: string;
     heroProof: string[];
     showHero: boolean;
+    showSearch: boolean;
     showBenefits: boolean;
     benefits: string[];
     productsEyebrow: string;
@@ -417,6 +418,7 @@ export const defaults: Settings = {
     heroButtonText: 'اكتشف المنتجات',
     heroProof: ['✓ الدفع عند الاستلام', '✓ تأكيد هاتفي'],
     showHero: true,
+    showSearch: true,
     showBenefits: true,
     benefits: [
       '◈ منتجات مختارة',

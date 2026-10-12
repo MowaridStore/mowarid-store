@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { catalogImages, catalogMedia } from '../src/shared/catalog';
+import { catalogImages, catalogMedia, catalogSearchKeywords } from '../src/shared/catalog';
 
 describe('catalog image contract', () => {
   it('prefers main_image and retains variant and legacy parent fallbacks', () => {
@@ -41,5 +41,28 @@ describe('catalog image contract', () => {
         {},
       ]),
     ).toEqual([]);
+  });
+});
+describe('product search keywords', () => {
+  it('retains supplier keywords and adds multilingual aliases for the named ingredients', () => {
+    const words = catalogSearchKeywords({
+      name: 'Pack Collagène Marin + Sélénium',
+      search_keywords: 'marin, مورد',
+    });
+    expect(words).toContain('مورد');
+    expect(words).toContain('كولاجين');
+    expect(words).toContain('collagen');
+    expect(words).toContain('سيلينيوم');
+    expect(catalogSearchKeywords({ name: 'Mass Plus' })).toContain('ماس بلاس');
+  });
+  it('does not assign another product’s aliases based on generic words or claims in the description', () => {
+    const words = catalogSearchKeywords({
+      name: 'Vitamin C Plus',
+      description: 'alternative to Mass Plus and Collagen',
+    });
+    expect(words).toContain('فيتامين');
+    expect(words).not.toContain('ماس بلاس');
+    expect(words).not.toContain('كولاجين');
+    expect(catalogSearchKeywords({ parent_name: 'Magnésium Glycinate' })).toContain('مغنيسيوم');
   });
 });

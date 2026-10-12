@@ -4,6 +4,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { build } from 'esbuild';
 import { Hono } from 'hono';
 import { readFile } from 'node:fs/promises';
+import { StoreOperations } from '../src/server/operations';
 import { runJobs, recordRemote, syncUpdatedOrders, metaPurchase } from '../src/server/jobs';
 import { dryRunMowarid, quoteMowarid } from '../src/server/order-checks';
 import { order, parsedOrder, settings } from '../src/server/db';
@@ -215,6 +216,9 @@ describe('real Worker runtime and D1 transactions', () => {
         );
       const first = (await (await req('/admin/catalog', undefined, true)).json()) as any[];
       expect(first).toHaveLength(500);
+      expect(
+        ((await (await req('/admin/catalog/skus', undefined, true)).json()) as any).skus,
+      ).toContain('ZZ-SEARCH-ONLY');
       expect(first.some((item) => item.sku === 'ZZ-SEARCH-ONLY')).toBe(false);
       const found = (await (
         await req('/admin/catalog?q=needle-variant-lookup', undefined, true)
@@ -227,6 +231,192 @@ describe('real Worker runtime and D1 transactions', () => {
       await env.DB.prepare(
         "DELETE FROM catalog WHERE sku LIKE 'A-SEARCH-%' OR sku='ZZ-SEARCH-ONLY'",
       ).run();
+    }
+  });
+  it('imports HTML catalog batches with safe publication, draft fallbacks and repeatable receipts', async () => {
+    const original = await env.DB.prepare("SELECT * FROM products WHERE sku='DEMO-A1'").first();
+    const items = [
+      {
+        sku: 'IMPORT-COLLAGEN',
+        name: 'Collagène Mini',
+        suggested_retail_price: 200,
+        stock_quantity: 10,
+      },
+      {
+        sku: 'IMPORT-CHEAP',
+        name: 'Cheap example',
+        suggested_retail_price: 10,
+        stock_quantity: 10,
+      },
+      {
+        sku: 'IMPORT-EMPTY',
+        name: 'No stock example',
+        suggested_retail_price: 200,
+        stock_quantity: 0,
+      },
+      {
+        sku: 'IMPORT-LARGE',
+        name: 'Oversized example',
+        suggested_retail_price: 200,
+        stock_quantity: 10,
+        description: '<p>' + 'a'.repeat(25000) + '</p>',
+      },
+    ];
+    try {
+      for (const item of items)
+        await env.DB.prepare('INSERT INTO catalog VALUES(?,?,?)')
+          .bind(
+            item.sku,
+            JSON.stringify({
+              is_active: true,
+              fulfillment_price: 80,
+              supplier_key: 'demo-a',
+              main_image: 'https://mowarid.ma/main.jpg',
+              images: ['https://mowarid.ma/extra.jpg'],
+              description:
+                '<h2>وصف المنتج</h2><p>تفاصيل فريدة للاستيراد</p><script>alert(1)</script>',
+              ...item,
+            }),
+            new Date().toISOString(),
+          )
+          .run();
+      const id = crypto.randomUUID();
+      const body = {
+        requestId: id,
+        mode: 'published',
+        skus: [...items.map((p) => p.sku), 'DEMO-A1', 'IMPORT-MISSING'],
+      };
+      expect((await req('/admin/catalog/import', body)).status).toBe(401);
+      const response = await req('/admin/catalog/import', body, true);
+      expect(response.status).toBe(200);
+      const receipt = (await response.json()) as any;
+      const result = (sku: string) => receipt.items.find((item: any) => item.sku === sku);
+      expect(result('IMPORT-COLLAGEN').status).toBe('published');
+      expect(result('IMPORT-CHEAP')).toMatchObject({ status: 'draft' });
+      expect(result('IMPORT-CHEAP').reason).toBeTruthy();
+      expect(result('IMPORT-EMPTY')).toMatchObject({ status: 'draft' });
+      expect(result('IMPORT-LARGE').status).toBe('failed');
+      expect(result('IMPORT-MISSING').status).toBe('failed');
+      expect(result('DEMO-A1').status).toBe('skipped');
+      const saved = await env.DB.prepare(
+        "SELECT * FROM products WHERE sku='IMPORT-COLLAGEN'",
+      ).first<any>();
+      expect(saved.active).toBe(1);
+      expect(saved.category_id).toBeNull();
+      expect(JSON.parse(saved.presentation).descriptionHtml).toContain('<h2>وصف المنتج</h2>');
+      expect(JSON.parse(saved.presentation).descriptionHtml).not.toContain('script');
+      expect(JSON.parse(saved.gallery)).toHaveLength(2);
+      expect(saved.keywords).toContain('كولاجين');
+      const lookup = await req('/products?q=' + encodeURIComponent('كولاجين'));
+      expect(((await lookup.json()) as any[]).some((p) => p.sku === 'IMPORT-COLLAGEN')).toBe(true);
+      expect(await (await req('/admin/catalog/import', body, true)).json()).toEqual(receipt);
+      expect((await req('/admin/catalog/import', { ...body, mode: 'draft' }, true)).status).toBe(
+        409,
+      );
+      const retry = (await (
+        await req('/admin/catalog/import', { ...body, requestId: crypto.randomUUID() }, true)
+      ).json()) as any;
+      expect(retry.items.filter((p: any) => p.status === 'skipped')).toHaveLength(4);
+      expect(await env.DB.prepare("SELECT * FROM products WHERE sku='DEMO-A1'").first()).toEqual(
+        original,
+      );
+      const inventory = (await (await req('/admin/catalog/skus', undefined, true)).json()) as any;
+      expect(inventory.skus).toContain('IMPORT-COLLAGEN');
+    } finally {
+      await env.DB.prepare("DELETE FROM products WHERE sku LIKE 'IMPORT-%'").run();
+      await env.DB.prepare("DELETE FROM catalog WHERE sku LIKE 'IMPORT-%'").run();
+    }
+  });
+  it('overlapping imports create one product and preserve a separately saved draft', async () => {
+    const sku = 'IMPORT-RACE';
+    await env.DB.prepare('INSERT INTO catalog VALUES(?,?,?)')
+      .bind(
+        sku,
+        JSON.stringify({
+          sku,
+          name: 'Concurrent product',
+          description: '<p>Example</p>',
+          main_image: 'https://mowarid.ma/test.jpg',
+          fulfillment_price: 80,
+          suggested_retail_price: 200,
+          supplier_key: 'demo-a',
+          is_active: true,
+          stock_quantity: 10,
+        }),
+        new Date().toISOString(),
+      )
+      .run();
+    try {
+      const responses = await Promise.all([
+        req(
+          '/admin/catalog/import',
+          { requestId: crypto.randomUUID(), mode: 'draft', skus: [sku] },
+          true,
+        ),
+        req(
+          '/admin/catalog/import',
+          { requestId: crypto.randomUUID(), mode: 'draft', skus: [sku] },
+          true,
+        ),
+      ]);
+      const results = (await Promise.all(responses.map((r) => r.json()))) as any[];
+      expect(results.flatMap((r) => r.items).filter((p) => p.status === 'draft')).toHaveLength(1);
+      expect(results.flatMap((r) => r.items).filter((p) => p.status === 'skipped')).toHaveLength(1);
+      await env.DB.prepare('UPDATE products SET name=?,keywords=? WHERE sku=?')
+        .bind('Merchant edit', 'custom-keyword', sku)
+        .run();
+      const before = await env.DB.prepare('SELECT * FROM products WHERE sku=?').bind(sku).first();
+      const repeated = (await (
+        await req(
+          '/admin/catalog/import',
+          { requestId: crypto.randomUUID(), mode: 'published', skus: [sku] },
+          true,
+        )
+      ).json()) as any;
+      expect(repeated.items[0].status).toBe('skipped');
+      expect(await env.DB.prepare('SELECT * FROM products WHERE sku=?').bind(sku).first()).toEqual(
+        before,
+      );
+    } finally {
+      await env.DB.prepare('DELETE FROM products WHERE sku=?').bind(sku).run();
+      await env.DB.prepare('DELETE FROM catalog WHERE sku=?').bind(sku).run();
+    }
+  });
+  it('runs catalog imports through the private operations worker and persists a retry receipt', async () => {
+    const sku = 'IMPORT-OPERATIONS',
+      requestId = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO catalog VALUES(?,?,?)')
+      .bind(
+        sku,
+        JSON.stringify({
+          sku,
+          name: 'Private worker example',
+          description: '<p>Example</p>',
+          main_image: 'https://mowarid.ma/test.jpg',
+          fulfillment_price: 80,
+          suggested_retail_price: 200,
+          supplier_key: 'demo-a',
+          is_active: true,
+          stock_quantity: 10,
+        }),
+        new Date().toISOString(),
+      )
+      .run();
+    try {
+      const worker = new StoreOperations({} as DurableObjectState, env);
+      const request = () =>
+        new Request('https://operations.internal/catalog-import', {
+          method: 'POST',
+          body: JSON.stringify({ requestId, mode: 'draft', skus: [sku], admin: 'owner' }),
+        });
+      const result = await worker.fetch(request());
+      expect(result.status).toBe(200);
+      const receipt = (await result.json()) as any;
+      expect(receipt.items[0].status).toBe('draft');
+      expect(await (await worker.fetch(request())).json()).toEqual(receipt);
+    } finally {
+      await env.DB.prepare('DELETE FROM products WHERE sku=?').bind(sku).run();
+      await env.DB.prepare('DELETE FROM catalog WHERE sku=?').bind(sku).run();
     }
   });
   it('rejects CSRF and mixed suppliers', async () => {

@@ -1,4 +1,6 @@
 import { BundlesEditor } from './bundles';
+import { BulkImporter } from './bulk-import';
+import { normalizeSearch } from '../shared/search';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
 import { landingFormAppearance, landingAppearanceLabels } from '../shared/landing-appearance';
@@ -1761,7 +1763,11 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                 setS={(value) =>
                   setS(
                     updateContent(
-                      { ...s, theme: value.theme },
+                      {
+                        ...s,
+                        theme: value.theme,
+                        home: { ...s.home, showSearch: value.home.showSearch },
+                      },
                       { home: value.home, heroTitle: value.heroTitle, heroText: value.heroText },
                       editingLanguage,
                     ),
@@ -1857,6 +1863,11 @@ function AppearanceSettings({
         />
       ))}
       <h2 className="wide">{t('أعلى الصفحة الرئيسية')}</h2>
+      <Check
+        label={t('إظهار مربع البحث في المتجر')}
+        value={s.home.showSearch !== false}
+        onChange={(v) => home('showSearch', v)}
+      />
       <Check
         label={t('إظهار القسم الرئيسي')}
         value={s.home.showHero}
@@ -2164,6 +2175,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     [categories, setCategories] = useState<Category[]>([]),
     [errors, setErrors] = useState<Record<string, FieldIssue>>({}),
     [catalogSearch, setCatalogSearch] = useState(''),
+    [productSearch, setProductSearch] = useState(''),
     [descriptionSource, setDescriptionSource] = useState<'text' | 'html'>('text'),
     [linkedCatalog, setLinkedCatalog] = useState<any>(null),
     [draft, setDraft] = useState<Product | null>(null),
@@ -2375,12 +2387,19 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
   if (!draft)
     return (
       <section className="panel">
-        <div className="toolbar">
+        <BulkImporter
+          scope={csrf.slice(0, 16)}
+          existing={rows}
+          query={productSearch}
+          onQuery={setProductSearch}
+          request={api}
+          onImported={load}
+        >
           <button className="primary" onClick={() => setDraft(fresh())}>
             {t('إضافة منتج +')}
           </button>
           <button onClick={() => void action(load, t('تم تحديث المنتجات.'))}>{t('تحديث')}</button>
-        </div>
+        </BulkImporter>
         <div className="table-wrap">
           <table className="admin-products-table">
             <thead>
@@ -2394,47 +2413,56 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => (
-                <tr key={p.id}>
-                  <td className="admin-product-title">
-                    <div className="product-cell">
-                      {p.image && (
-                        <img src={p.image} alt="" loading="lazy" width="48" height="48" />
-                      )}
-                      <span>
-                        {p.name}
-                        <small>{p.sku}</small>
+              {rows
+                .filter((p) =>
+                  normalizeSearch(p.name + ' ' + p.sku).includes(normalizeSearch(productSearch)),
+                )
+                .map((p) => (
+                  <tr key={p.id}>
+                    <td className="admin-product-title">
+                      <div className="product-cell">
+                        {p.image && (
+                          <img src={p.image} alt="" loading="lazy" width="48" height="48" />
+                        )}
+                        <span>
+                          {p.name}
+                          <small>{p.sku}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label={t('القسم')}>
+                      {categories.find((c) => c.id === p.categoryId)?.name || t('دون قسم')}
+                    </td>
+                    <td data-label={t('السعر')}>{money(p.price)}</td>
+                    <td data-label={t('التوفر')}>
+                      {p.stock > 0 ? t('متاح للطلب') : t('غير متوفر حاليًا')}
+                    </td>
+                    <td data-label={t('الحالة')}>
+                      <span className={'badge ' + (p.verified ? 'ok' : 'error')}>
+                        {p.active
+                          ? p.storefrontVisible === 0
+                            ? t('بالرابط فقط')
+                            : t('ظاهر في المتجر')
+                          : t('مسودة')}{' '}
+                        · {p.verified ? t('موثق') : t('غير موثق')}
                       </span>
-                    </div>
-                  </td>
-                  <td data-label={t('القسم')}>
-                    {categories.find((c) => c.id === p.categoryId)?.name || t('دون قسم')}
-                  </td>
-                  <td data-label={t('السعر')}>{money(p.price)}</td>
-                  <td data-label={t('التوفر')}>
-                    {p.stock > 0 ? t('متاح للطلب') : t('غير متوفر حاليًا')}
-                  </td>
-                  <td data-label={t('الحالة')}>
-                    <span className={'badge ' + (p.verified ? 'ok' : 'error')}>
-                      {p.active
-                        ? p.storefrontVisible === 0
-                          ? t('بالرابط فقط')
-                          : t('ظاهر في المتجر')
-                        : t('مسودة')}{' '}
-                      · {p.verified ? t('موثق') : t('غير موثق')}
-                    </span>
-                  </td>
-                  <td className="admin-product-actions">
-                    <button className="small-button" onClick={() => setDraft(prepareProduct(p))}>
-                      {t('تعديل')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="admin-product-actions">
+                      <button className="small-button" onClick={() => setDraft(prepareProduct(p))}>
+                        {t('تعديل')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
         {!rows.length && <p className="empty-state">{t('أضف منتجًا واربطه بكتالوج مورد.')}</p>}
+        {!!rows.length &&
+          !!productSearch &&
+          !rows.some((p) =>
+            normalizeSearch(p.name + ' ' + p.sku).includes(normalizeSearch(productSearch)),
+          ) && <p className="empty-state">{t('لا توجد منتجات مطابقة للبحث.')}</p>}
       </section>
     );
   return (

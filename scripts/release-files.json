@@ -169,5 +169,8 @@
   "tests/e2e/policies.spec.ts",
   "tests/e2e/landing-editor.spec.ts",
   "tests/bundle-profit.test.ts",
-  "src/shared/landing-appearance.ts"
+  "src/shared/landing-appearance.ts",
+  "src/admin/bulk-import.tsx",
+  "src/server/catalog-import.ts",
+  "tests/e2e/bulk-import.spec.ts"
 ]

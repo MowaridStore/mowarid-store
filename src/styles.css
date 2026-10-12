@@ -3938,6 +3938,45 @@ td p {
 .storefront .store-header {
   position: relative;
 }
+.storefront:not(.checkout-store) .store-header:not(:has(.store-search)) {
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'brand cart' 'nav nav';
+}
+@media (max-width: 700px) {
+  .storefront:not(.checkout-store) .store-header:not(:has(.store-search)) {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas: 'menu brand cart';
+  }
+}
+.products-list-search {
+  max-width: 560px;
+  margin-block: 16px;
+}
+.bulk-catalog-selection,
+.bulk-import-progress {
+  margin-block: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.bulk-import-progress progress {
+  width: 100%;
+  accent-color: var(--green);
+}
+.bulk-import-counts {
+  font-size: 13px;
+  margin-block: 12px;
+}
+.bulk-import-progress ul {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 13px;
+}
+.bulk-catalog-table input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--green);
+}
 @media (max-width: 700px) {
   .storefront .mobile-menu > nav {
     top: calc(100% - 4px);

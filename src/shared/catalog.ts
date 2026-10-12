@@ -1,4 +1,5 @@
 // Support legacy cached relative URLs as well as the current HTTPS contract.
+import { normalizeSearch } from './search';
 export function catalogImages(images: unknown, parentImages?: unknown): string[] {
   const normalize = (value: unknown) => {
     if (!Array.isArray(value)) return [];
@@ -73,4 +74,68 @@ export function catalogDescriptions(product: Record<string, any>, parent?: Recor
     html: typeof html === 'string' && html ? html : typeof base === 'string' ? base : '',
     text: typeof text === 'string' && text ? text : typeof base === 'string' ? base : '',
   };
+}
+
+// Search aliases describe product names/ingredients, never inferred health claims.
+const searchAliases = [
+  ['collagen|collagene|كولاجين', 'collagen, collagène, كولاجين'],
+  ['omega|اوميغا|اوميجا', 'omega, oméga, أوميغا, أوميجا'],
+  ['gluta|glutawhite|glutathion|غلوتا|جلوتا', 'gluta, glutathion, غلوتا, جلوتا'],
+  ['magnesium|مغنيسيوم', 'magnesium, magnésium, مغنيسيوم'],
+  ['spiruline|spirulina|سبيرولينا', 'spiruline, spirulina, سبيرولينا'],
+  ['probiotic|بروبيوتيك', 'probiotic, probiotiques, بروبيوتيك'],
+  ['ashwagandha|اشواغاندا', 'ashwagandha, أشواغاندا'],
+  ['shilajit|شيلاجيت', 'shilajit, شيلاجيت'],
+  ['melatonine|melatonin|ميلاتونين', 'melatonin, mélatonine, ميلاتونين'],
+  ['vitamine|vitamin|فيتامين', 'vitamin, vitamine, فيتامين'],
+  ['selenium|سيلينيوم', 'selenium, sélénium, سيلينيوم'],
+  ['propolis|بروبوليس', 'propolis, بروبوليس'],
+  ['cartilage|غضاريف', 'cartilage, غضاريف'],
+  ['foie de morue|كبد الحوت', 'foie de morue, كبد الحوت'],
+  ['gelee royale|غذاء الملكات', 'gelée royale, غذاء الملكات'],
+  ['mass plus|ماس بلاس', 'mass plus, ماس بلاس'],
+  ['bodyform|بودي فورم', 'bodyform, بودي فورم'],
+  ['slim flush|سليم فلاش', 'slim flush, سليم فلاش'],
+  ['anti poux|قمل', 'anti poux, مضاد القمل'],
+  ['ecran solaire|spf|واقي الشمس', 'écran solaire, sunscreen, واقي الشمس'],
+  ['levure de biere|خميرة', 'levure de bière, brewer yeast, خميرة البيرة'],
+  ['acerola|ايسرولا|اسيرولا', 'acérola, acerola, أيسرولا, أسيرولا'],
+  ['charbon vegetal|فحم نباتي', 'charbon végétal, charcoal, فحم نباتي'],
+  ['creme|cream|كريم', 'crème, cream, كريم'],
+  ['gel|جل', 'gel, جل'],
+  ['lait|lotion|لوشن', 'lait, lotion, لوشن'],
+  ['contour yeux|محيط العين', 'contour yeux, eye contour, محيط العين'],
+  ['nettoyant|cleanser|غسول', 'nettoyant, cleanser, غسول'],
+  ['hydratante|hydratant|moisturizing|مرطب', 'hydratant, moisturizer, مرطّب'],
+  ['vitamine c|vitamin c', 'vitamin C, vitamine C, فيتامين سي, فيتامين ج'],
+  ['vitamine d|vitamin d', 'vitamin D, vitamine D, فيتامين د'],
+  ['vitamine d3|vitamin d3', 'vitamin D3, vitamine D3, فيتامين د3'],
+] as const;
+
+export function catalogSearchKeywords(
+  product: Record<string, unknown>,
+  parent?: Record<string, unknown>,
+) {
+  const name = normalizeSearch(String(product.name || product.parent_name || parent?.name || ''));
+  const own = catalogKeywords(product, parent);
+  const aliases = searchAliases
+    .filter(([needles]) =>
+      needles
+        .split('|')
+        .some((word) => new RegExp('(?:^| )' + normalizeSearch(word) + '(?: |$)').test(name)),
+    )
+    .map(([, words]) => words);
+  return [
+    ...new Set(
+      [own, String(product.name || product.parent_name || parent?.name || ''), ...aliases].flatMap(
+        (value) =>
+          value
+            .split(',')
+            .map((word) => word.trim())
+            .filter(Boolean),
+      ),
+    ),
+  ]
+    .join(', ')
+    .slice(0, 1000);
 }

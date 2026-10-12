@@ -3340,8 +3340,8 @@
     "en": "Remove"
   },
   "جارٍ تحميل المنتجات…": {
-    "fr": "Chargement des produits…",
-    "en": "Loading products…"
+    "en": "Loading products…",
+    "fr": "Chargement des produits…"
   },
   "كتالوج المنتجات المقترحة": {
     "fr": "Catalogue des produits à recommander",
@@ -5094,5 +5094,133 @@
   "متوسط الربح الصافي للحبة (تقريبي)": {
     "en": "Average net profit per item (estimated)",
     "fr": "Bénéfice net moyen par article (estimé)"
+  },
+  "إظهار مربع البحث في المتجر": {
+    "en": "Show the store search box",
+    "fr": "Afficher la barre de recherche de la boutique"
+  },
+  "استيراد كل المنتجات مفعّلة": {
+    "en": "Import all products as published",
+    "fr": "Importer tous les produits publiés"
+  },
+  "استيراد كل المنتجات مسودة": {
+    "en": "Import all products as drafts",
+    "fr": "Importer tous les produits en brouillon"
+  },
+  "استيراد المحدد مفعّلة": {
+    "en": "Import selected products as published",
+    "fr": "Importer la sélection publiée"
+  },
+  "استيراد المحدد مسودة": {
+    "en": "Import selected products as drafts",
+    "fr": "Importer la sélection en brouillon"
+  },
+  "البحث باسم أو كود المنتج": {
+    "en": "Search by product name or SKU",
+    "fr": "Rechercher par nom ou référence du produit"
+  },
+  "اكتب اسم المنتج أو كوده": {
+    "en": "Enter a product name or SKU",
+    "fr": "Saisissez un nom ou une référence"
+  },
+  "تمت معالجة {done} من {total} منتج": {
+    "en": "Processed {done} of {total} products",
+    "fr": "{done} produits traités sur {total}"
+  },
+  "منشور": {
+    "en": "Published",
+    "fr": "Publié"
+  },
+  "تم تخطيه": {
+    "en": "Skipped",
+    "fr": "Ignoré"
+  },
+  "تعذر استيراده": {
+    "en": "Failed",
+    "fr": "Échec"
+  },
+  "متابعة الاستيراد": {
+    "en": "Resume import",
+    "fr": "Reprendre l’importation"
+  },
+  "تفاصيل الاستيراد": {
+    "en": "Import details",
+    "fr": "Détails de l’importation"
+  },
+  "اختيار منتجات من كتالوج مورد": {
+    "en": "Select products from the Mowarid catalog",
+    "fr": "Sélectionner des produits du catalogue Mowarid"
+  },
+  "حدّد المنتجات ثم استخدم زري الاستيراد أعلاه. المنتجات المضافة سابقًا تُتخطّى للحفاظ على تعديلاتك.": {
+    "en": "Select products and use the import buttons above. Existing products are skipped to preserve your changes.",
+    "fr": "Sélectionnez les produits puis utilisez les boutons ci-dessus. Les produits existants sont ignorés pour préserver vos modifications."
+  },
+  "تحديد المنتجات المتاحة في هذه الصفحة": {
+    "en": "Select available products on this page",
+    "fr": "Sélectionner les produits disponibles sur cette page"
+  },
+  "إلغاء التحديد": {
+    "en": "Clear selection",
+    "fr": "Effacer la sélection"
+  },
+  "اختيار": {
+    "en": "Select",
+    "fr": "Sélectionner"
+  },
+  "السعر المقترح": {
+    "en": "Suggested price",
+    "fr": "Prix conseillé"
+  },
+  "اختيار المنتج {sku}": {
+    "en": "Select product {sku}",
+    "fr": "Sélectionner le produit {sku}"
+  },
+  "مضاف": {
+    "en": "Already added",
+    "fr": "Déjà ajouté"
+  },
+  "لا توجد منتجات مطابقة للبحث.": {
+    "en": "No products match your search.",
+    "fr": "Aucun produit ne correspond à votre recherche."
+  },
+  "المنتج مضاف سابقًا؛ احتفظنا بتعديلاته.": {
+    "en": "The product already exists; your changes were preserved.",
+    "fr": "Le produit existe déjà ; vos modifications ont été conservées."
+  },
+  "المنتج غير موجود في كتالوج مورد الحالي.": {
+    "en": "The product is missing from the current Mowarid catalog.",
+    "fr": "Le produit est absent du catalogue Mowarid actuel."
+  },
+  "بيانات مورد غير موثقة أو المنتج غير مفعّل لديه.": {
+    "en": "Mowarid data is unverified or the product is inactive.",
+    "fr": "Les données Mowarid ne sont pas vérifiées ou le produit est inactif."
+  },
+  "المنتج غير متوفر في المخزون.": {
+    "en": "The product is out of stock.",
+    "fr": "Le produit est en rupture de stock."
+  },
+  "الصورة أو وصف المنتج يحتاج مراجعة قبل النشر.": {
+    "en": "Review the product image or description before publishing.",
+    "fr": "Vérifiez l’image ou la description avant publication."
+  },
+  "حدّث بيانات مورد للحصول على تكلفة التوصيل الموثوقة.": {
+    "en": "Update Mowarid data to obtain verified delivery costs.",
+    "fr": "Actualisez les données Mowarid pour obtenir des frais de livraison vérifiés."
+  },
+  "راجع السعر وتكلفة التوصيل قبل النشر.": {
+    "en": "Review the price and delivery cost before publishing.",
+    "fr": "Vérifiez le prix et les frais de livraison avant publication."
+  },
+  "بيانات المنتج أو حجم وصفه غير صالح للاستيراد. راجعه يدويًا.": {
+    "en": "The product data or description size cannot be imported. Review it manually.",
+    "fr": "Les données ou la taille de la description ne permettent pas l’importation. Vérifiez le produit manuellement."
+  },
+  "السعر المقترح من مورد غير متاح؛ حدّد السعر قبل النشر.": {
+    "en": "The Mowarid suggested price is unavailable; set a price before publishing.",
+    "fr": "Le prix conseillé Mowarid est indisponible ; définissez le prix avant publication."
+  },
+  "تعذر إكمال دفعة الاستيراد. اضغط متابعة الاستيراد للمحاولة مجددًا.": {
+    "en": "The import batch could not finish. Select Resume import to retry.",
+    "fr": "Le lot n’a pas pu être importé. Cliquez sur Reprendre l’importation pour réessayer."
   }
 }

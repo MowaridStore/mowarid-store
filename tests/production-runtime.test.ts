@@ -692,4 +692,112 @@ describe('real deployment runtime', () => {
         .run();
     }
   });
+  it('imports through the native private operations binding and keeps stale provider data as a draft', async () => {
+    const db = await runtime.getD1Database('DB');
+    const config = await settings(db);
+    const previous = (
+      await db
+        .prepare("SELECT * FROM sync_state WHERE name IN ('supplier_contract','shipping_policy')")
+        .all()
+    ).results;
+    const credentialBefore = await db
+      .prepare("SELECT encrypted FROM credentials WHERE name='mowarid'")
+      .first<any>();
+    const owner = await db.prepare('SELECT id FROM admins LIMIT 1').first<any>();
+    const token = 'catalog-import-session-test-only',
+      csrf = 'catalog-import-csrf-test-only';
+    const key = 'mw_live_catalog_import_fixture',
+      fingerprint = await digest(key),
+      requestId = crypto.randomUUID();
+    try {
+      await db
+        .prepare('INSERT OR REPLACE INTO sessions(hash,admin_id,csrf,expires_at) VALUES(?,?,?,?)')
+        .bind(await digest(token), owner.id, csrf, Date.now() + 600000)
+        .run();
+      await db
+        .prepare('INSERT OR REPLACE INTO credentials VALUES(?,?)')
+        .bind('mowarid', await encryptSecret({ ENCRYPTION_KEY: btoa('z'.repeat(32)) } as Env, key))
+        .run();
+      await db
+        .prepare('UPDATE settings SET json=? WHERE id=1')
+        .bind(JSON.stringify({ ...config, contractVerified: true }))
+        .run();
+      for (const [name, value] of [
+        ['supplier_contract', { keyFingerprint: fingerprint }],
+        [
+          'shipping_policy',
+          { catalog: { keyFingerprint: fingerprint, maximum: 3000, casa: 2000, other: 3000 } },
+        ],
+      ] as const)
+        await db
+          .prepare('INSERT OR REPLACE INTO sync_state VALUES(?,?)')
+          .bind(name, JSON.stringify(value))
+          .run();
+      for (const [sku, hash] of [
+        ['IMPORT-NATIVE-VALID', fingerprint],
+        ['IMPORT-NATIVE-STALE', 'different-provider-key'],
+      ])
+        await db
+          .prepare('INSERT INTO catalog VALUES(?,?,?)')
+          .bind(
+            sku,
+            JSON.stringify({
+              sku,
+              name: 'Collagen Native',
+              description: '<h2>Example</h2><p>Product details</p>',
+              main_image: 'https://mowarid.ma/test.jpg',
+              fulfillment_price: 80,
+              suggested_retail_price: 200,
+              stock_quantity: 10,
+              supplier_key: 'runtime-supplier',
+              is_active: true,
+              key_fingerprint: hash,
+            }),
+            new Date().toISOString(),
+          )
+          .run();
+      const payload = {
+        requestId,
+        mode: 'published',
+        skus: ['IMPORT-NATIVE-VALID', 'IMPORT-NATIVE-STALE'],
+      };
+      const headers = { Cookie: 'session=' + token, 'X-CSRF-Token': csrf };
+      const response = await post('/admin/catalog/import', payload, headers);
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as any;
+      expect(result.items.find((p: any) => p.sku === 'IMPORT-NATIVE-VALID').status).toBe(
+        'published',
+      );
+      expect(result.items.find((p: any) => p.sku === 'IMPORT-NATIVE-STALE')).toMatchObject({
+        status: 'draft',
+      });
+      expect(await (await post('/admin/catalog/import', payload, headers)).json()).toEqual(result);
+      expect(
+        (
+          await db
+            .prepare("SELECT active FROM products WHERE sku='IMPORT-NATIVE-STALE'")
+            .first<any>()
+        ).active,
+      ).toBe(0);
+    } finally {
+      await db.prepare("DELETE FROM products WHERE sku LIKE 'IMPORT-NATIVE-%'").run();
+      await db.prepare("DELETE FROM catalog WHERE sku LIKE 'IMPORT-NATIVE-%'").run();
+      await db
+        .prepare('DELETE FROM sessions WHERE hash=?')
+        .bind(await digest(token))
+        .run();
+      await db.prepare('UPDATE settings SET json=? WHERE id=1').bind(JSON.stringify(config)).run();
+      await db
+        .prepare("DELETE FROM sync_state WHERE name IN ('supplier_contract','shipping_policy')")
+        .run();
+      for (const row of previous as any[])
+        await db.prepare('INSERT INTO sync_state VALUES(?,?)').bind(row.name, row.json).run();
+      await db.prepare("DELETE FROM credentials WHERE name='mowarid'").run();
+      if (credentialBefore)
+        await db
+          .prepare('INSERT INTO credentials VALUES(?,?)')
+          .bind('mowarid', credentialBefore.encrypted)
+          .run();
+    }
+  });
 });

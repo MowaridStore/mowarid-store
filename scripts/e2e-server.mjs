@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const persist = await mkdtemp(join(tmpdir(), 'mowarid-e2e-'));
+await mkdir('test-results', { recursive: true });
+await writeFile('test-results/e2e-database.json', JSON.stringify({ persist }));
 let child;
 let stopping = false;
 const wrangler = (args) =>

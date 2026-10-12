@@ -3,6 +3,8 @@ import { runJobs, tick, refreshTracking } from './jobs';
 import { instrument } from './usage';
 import { receiveWebhook, processWebhooks } from './webhooks';
 import { DomainError } from '../shared/domain';
+import { importCatalogBatch, catalogImportSchema } from './catalog-import';
+import { z } from 'zod';
 
 // A private binding handles scheduled work under Durable Object CPU limits.
 // Jobs and idempotency stay durable in D1; overlap defers to the next tick.
@@ -16,7 +18,15 @@ export class StoreOperations {
     const path = new URL(request.url).pathname;
     if (
       request.method !== 'POST' ||
-      !['/tick', '/jobs', '/submit', '/tracking', '/webhooks', '/receive'].includes(path)
+      ![
+        '/tick',
+        '/jobs',
+        '/submit',
+        '/tracking',
+        '/webhooks',
+        '/receive',
+        '/catalog-import',
+      ].includes(path)
     )
       return new Response(null, { status: 404 });
     // A signed callback must be persisted even while registration/test awaits
@@ -40,12 +50,23 @@ export class StoreOperations {
         await usage.flush();
       }
     }
-    if (this.busy) return Response.json({ ok: true, deferred: true });
+    if (this.busy)
+      return Response.json(
+        { ok: path !== '/catalog-import', deferred: true },
+        { status: path === '/catalog-import' ? 503 : 200 },
+      );
     this.busy = true;
     const usage = instrument(this.env.DB);
     try {
       const env = { ...this.env, DB: usage.db };
-      if (path === '/tick') await tick(env);
+      if (path === '/catalog-import') {
+        const body = catalogImportSchema
+          .extend({ admin: z.string().min(1).max(100) })
+          .parse(await request.json());
+        return Response.json(
+          await importCatalogBatch(env, body.admin, body.requestId, body.mode, body.skus),
+        );
+      } else if (path === '/tick') await tick(env);
       else if (path === '/tracking') return Response.json(await refreshTracking(env, true));
       else if (path === '/webhooks') await processWebhooks(env);
       else if (path === '/submit') {

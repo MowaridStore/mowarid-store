@@ -337,6 +337,7 @@ const baseSettingsSchema = z
         heroButtonText: text(100),
         heroProof: z.array(text(150)).max(6),
         showHero: z.boolean(),
+        showSearch: z.boolean().default(true),
         showBenefits: z.boolean(),
         benefits: z.array(text(150)).max(6),
         productsEyebrow: text(150),

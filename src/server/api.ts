@@ -42,7 +42,7 @@ import {
   platformShipping,
 } from '../shared/domain';
 import { cartSchema, orderSchema, productSchema, settingsSchema, categorySchema } from './schemas';
-import { catalogMedia, catalogKeywords } from '../shared/catalog';
+import { catalogMedia, catalogSearchKeywords } from '../shared/catalog';
 import { merchantCatalog } from '../shared/merchant-order';
 import {
   financialStatus,
@@ -83,6 +83,7 @@ import { mowarid, supplierKey, field, cents, RemoteError } from './mowarid';
 import { quoteMowarid, dryRunMowarid } from './order-checks';
 import { previewHTML } from './views';
 import { searchProducts } from './search';
+import { importCatalogBatch, catalogImportSchema } from './catalog-import';
 import { merchantPricingSnapshot, orderPricing } from '../shared/order-pricing';
 import { canonicalCity } from '../shared/cities';
 export const api = new Hono<{ Bindings: Env; Variables: { admin: string; csrf: string } }>();
@@ -1057,6 +1058,8 @@ api.put('/admin/settings', async (c) => {
     body = await c.req.json(),
     s = settingsSchema.parse(body);
   s.metaVersion = META_GRAPH_VERSION;
+  if (!body.home || !Object.hasOwn(body.home, 'showSearch'))
+    s.home.showSearch = old.home.showSearch;
   for (const key of ['contactEmail', 'contactPhone', 'socials', 'checkoutOffers'] as const)
     if (!Object.hasOwn(body, key)) (s as any)[key] = old[key];
   for (const key of ['adminLanguage', 'storeLanguage', 'contentTranslations'] as const)
@@ -1284,6 +1287,32 @@ api.post('/admin/jobs/:id/retry', async (c) => {
   await audit(c.env.DB, c.get('admin'), 'job_retry', c.req.param('id'));
   return c.json({ ok: true });
 });
+api.get('/admin/catalog/skus', async (c) => {
+  const rows = await c.env.DB.prepare('SELECT sku FROM catalog ORDER BY sku').all<{
+    sku: string;
+  }>();
+  return c.json({ skus: rows.results.map((row) => row.sku) });
+});
+api.post('/admin/catalog/import', async (c) => {
+  const body = catalogImportSchema.parse(await c.req.json());
+  if (c.env.OPERATIONS) {
+    const stub = c.env.OPERATIONS.get(c.env.OPERATIONS.idFromName('catalog-import'));
+    const response = await stub.fetch('https://operations.internal/catalog-import', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, admin: c.get('admin') }),
+    });
+    if (!response.ok)
+      throw new DomainError(
+        'catalog_import_retry',
+        'تعذر إكمال دفعة الاستيراد. اضغط متابعة الاستيراد للمحاولة مجددًا.',
+        503,
+      );
+    return c.json(await response.json());
+  }
+  return c.json(
+    await importCatalogBatch(c.env, c.get('admin'), body.requestId, body.mode, body.skus),
+  );
+});
 api.get('/admin/catalog', async (c) => {
   const query = z
     .string()
@@ -1337,7 +1366,7 @@ api.get('/admin/catalog', async (c) => {
   const mapped = rows.map((product) => ({
     ...merchantCatalog(product),
     ...catalogMedia(product, parentImages.get(product.parent_id)),
-    search_keywords: catalogKeywords(product, parentImages.get(product.parent_id)),
+    search_keywords: catalogSearchKeywords(product, parentImages.get(product.parent_id)),
   }));
   if (!paginated) return c.json(mapped);
   const count = await c.env.DB.prepare(

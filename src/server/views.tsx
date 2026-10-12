@@ -258,7 +258,7 @@ export function Layout({
                   <span data-cart-count>0</span>
                 </button>
               </div>
-              {!checkout && (
+              {!checkout && s.home.showSearch !== false && (
                 <form class="store-search" action="/" role="search">
                   <Icon name="search" size={20} />
                   <input

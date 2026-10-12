@@ -22,6 +22,16 @@ import { fieldIssues } from '../src/shared/validation';
 import { OrderForm } from '../src/server/views';
 
 describe('independent dashboard and storefront languages', () => {
+  it('defaults legacy search to visible and keeps its visibility global across translated appearance', () => {
+    const { showSearch: _, ...legacyHome } = defaults.home;
+    expect(settingsSchema.parse({ ...defaults, home: legacyHome }).home.showSearch).toBe(true);
+    const configured = {
+      ...defaults,
+      home: { ...defaults.home, showSearch: false },
+      contentTranslations: { fr: { home: { showSearch: true } } },
+    };
+    expect(storefrontSettings({ ...configured, storeLanguage: 'fr' }).home.showSearch).toBe(false);
+  });
   it('translates built-in store content and form labels without changing dashboard preference', () => {
     const s = { ...defaults, adminLanguage: 'en' as const, storeLanguage: 'fr' as const };
     const localized = storefrontSettings(s);

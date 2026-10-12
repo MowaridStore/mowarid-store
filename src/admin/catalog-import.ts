@@ -1,4 +1,4 @@
-import { catalogDescriptions, catalogKeywords } from '../shared/catalog';
+import { catalogDescriptions, catalogSearchKeywords } from '../shared/catalog';
 import type { Product, Language } from '../shared/types';
 export function emptyProduct(language: Language): Product {
   return {
@@ -88,6 +88,6 @@ export function productFromCatalog(
     stock: c.stock_quantity || 0,
     minimum: Math.round((c.minimum_selling_price || 0) * 100),
     fulfillment: c.fulfillment_price == null ? null : Math.round(c.fulfillment_price * 100),
-    keywords: catalogKeywords(c) || base.keywords || '',
+    keywords: catalogSearchKeywords(c) || base.keywords || '',
   };
 }

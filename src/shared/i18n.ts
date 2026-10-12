@@ -63,7 +63,11 @@ export function storefrontSettings(s: Settings): Settings {
   };
   for (const key of contentKeys) localized[key] = translateDefaults(s[key], defaults[key]);
   const content = s.contentTranslations?.[language] || {};
-  return { ...localized, ...content, home: { ...localized.home, ...content.home } } as Settings;
+  return {
+    ...localized,
+    ...content,
+    home: { ...localized.home, ...content.home, showSearch: s.home.showSearch !== false },
+  } as Settings;
 }
 export function storeTranslator(s: Settings) {
   return translator(
