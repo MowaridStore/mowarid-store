@@ -39,6 +39,8 @@ type Config = {
   direct?: boolean;
   checkout?: boolean;
   productId?: string;
+  landingProductIds?: string[];
+  landingPackComponentIds?: string[];
   development: boolean;
   searchIds?: string[];
 };
@@ -48,6 +50,25 @@ const t = translator(languageOf(config.settings.storeLanguage), config.settings.
 const money = (cents: number) => formatMoney(cents, languageOf(config.settings.storeLanguage));
 const languageDraftKey = 'dar-language-draft';
 let restoredDirectQuantity = 0;
+const landingChoiceKey = 'dar-landing-product:' + config.productId;
+let selectedPurchaseId = config.productId;
+const allowedLandingIds = new Set(config.landingProductIds || [config.productId]);
+try {
+  const saved = sessionStorage.getItem(landingChoiceKey);
+  const p = config.products.find((p) => p.id === saved);
+  if (
+    config.landing &&
+    saved &&
+    allowedLandingIds.has(saved) &&
+    p?.active &&
+    p.verified &&
+    p.stock > 0
+  )
+    selectedPurchaseId = saved;
+} catch {}
+function purchaseProductId() {
+  return config.landing ? selectedPurchaseId : config.productId;
+}
 let selectedOfferId = config.direct ? new URLSearchParams(location.search).get('offer') || '' : '';
 function currentOfferId() {
   return selectedOfferId;
@@ -63,7 +84,7 @@ function purchaseQuantity() {
   );
 }
 function setPurchaseQuantity(quantity: number) {
-  const p = config.products.find((p) => p.id === config.productId);
+  const p = config.products.find((p) => p.id === purchaseProductId());
   const q = Math.max(1, Math.min(100, p?.stock || 100, quantity));
   directQuantity = q;
   const input = document.querySelector<HTMLInputElement>('#product-quantity');
@@ -85,6 +106,7 @@ function saveLanguageDraft() {
       JSON.stringify({
         path: location.pathname,
         productId: config.productId,
+        selectedProductId: purchaseProductId(),
         at: Date.now(),
         fields,
         offer: currentOfferId(),
@@ -107,6 +129,14 @@ function restoreLanguageDraft() {
       Date.now() - saved.at > 600000
     )
       return;
+    if (
+      config.landing &&
+      allowedLandingIds.has(saved.selectedProductId) &&
+      config.products.some(
+        (p) => p.id === saved.selectedProductId && p.active && p.verified && p.stock > 0,
+      )
+    )
+      selectedPurchaseId = saved.selectedProductId;
     for (const name of ['name', 'phone', 'city', 'address', 'notes']) {
       const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
         '#checkout-form [name="' + name + '"]',
@@ -243,7 +273,9 @@ if (config.direct) {
   );
   if (radio) radio.checked = true;
 }
-const directQuantityKey = 'dar-direct-quantity:' + config.productId + ':' + location.search;
+function directQuantityKey() {
+  return 'dar-direct-quantity:' + purchaseProductId() + ':' + location.search;
+}
 let directQuantity = Math.max(
   1,
   Math.min(
@@ -257,7 +289,7 @@ try {
     Math.min(
       100,
       restoredDirectQuantity ||
-        Number(sessionStorage.getItem(directQuantityKey)) ||
+        Number(sessionStorage.getItem(directQuantityKey())) ||
         Number(
           sessionStorage.getItem(
             'dar-direct-addons:' + config.productId + ':' + location.search + ':quantity',
@@ -268,13 +300,13 @@ try {
   );
 } catch {}
 if (config.direct && !restoredDirectQuantity && directQuantity === 1) {
-  const p = config.products.find((p) => p.id === config.productId);
+  const p = config.products.find((p) => p.id === purchaseProductId());
   const oldOffer = p?.offers.find((o) => o.id === selectedOfferId);
   if (oldOffer) directQuantity = oldOffer.quantity;
 }
 function checkoutLines() {
   if (!directCheckout) return cart;
-  const p = config.products.find((p) => p.id === config.productId);
+  const p = config.products.find((p) => p.id === purchaseProductId());
   return p ? [chosen(p, currentOfferId(), directQuantity)] : [];
 }
 function add(id: string, offerId = '', increment = false, quantity = 1) {
@@ -344,7 +376,7 @@ function render() {
     const p = config.products.find((p) => p.id === el.dataset.cardPrice);
     if (p) el.textContent = money(p.price);
   });
-  const pricingProduct = config.products.find((p) => p.id === config.productId);
+  const pricingProduct = config.products.find((p) => p.id === purchaseProductId());
   const selectedSaleBundle =
     !!pricingProduct && !!quantityPrice(pricingProduct, purchaseQuantity()).offerId;
   document.querySelectorAll<HTMLElement>('[data-sale-original]').forEach((el) => {
@@ -352,10 +384,10 @@ function render() {
     el.hidden =
       !p?.originalPrice ||
       p.originalPrice <= p.price ||
-      (p.id === config.productId && selectedSaleBundle);
+      (p.id === purchaseProductId() && selectedSaleBundle);
     if (p?.originalPrice)
       el.textContent = money(
-        p.originalPrice * (p.id === config.productId ? purchaseQuantity() : 1),
+        p.originalPrice * (p.id === purchaseProductId() ? purchaseQuantity() : 1),
       );
   });
   document.querySelectorAll<HTMLElement>('[data-sale-badge]').forEach((el) => {
@@ -363,7 +395,7 @@ function render() {
     el.hidden =
       !p?.originalPrice ||
       p.originalPrice <= p.price ||
-      (p.id === config.productId && selectedSaleBundle);
+      (p.id === purchaseProductId() && selectedSaleBundle);
     if (p?.originalPrice)
       el.textContent = '−' + Math.round((1 - p.price / p.originalPrice) * 100) + '%';
   });
@@ -372,7 +404,7 @@ function render() {
     el.hidden =
       !p?.priceEndsAt ||
       Date.parse(p.priceEndsAt) <= Date.now() ||
-      (p.id === config.productId && selectedSaleBundle);
+      (p.id === purchaseProductId() && selectedSaleBundle);
   });
   const heroProducts = config.products
     .filter((p) => p.storefrontVisible !== 0 && (!cart.length || p.supplier === cart[0].supplier))
@@ -383,8 +415,6 @@ function render() {
     if (!p) return;
     const image = el.querySelector<HTMLImageElement>('img');
     if (image && image.getAttribute('src') !== p.image) image.src = p.image;
-    const label = el.querySelector('span');
-    if (label) label.textContent = p.name;
     el.dataset.supplier = p.supplier || '';
   });
   document
@@ -497,11 +527,43 @@ function renderCheckout(html: string) {
     $('#checkout-items')!.innerHTML = directCheckout
       ? linesHtml(checkoutLines(), true, true)
       : html;
-  const p = config.products.find((p) => p.id === config.productId),
+  const p = config.products.find((p) => p.id === purchaseProductId()),
     conflict = !!p && !!cart.length && p.supplier !== cart[0].supplier;
+  document.querySelectorAll<HTMLInputElement>('input[name="landing-product"]').forEach((input) => {
+    const item = config.products.find((p) => p.id === input.value);
+    input.checked = input.value === purchaseProductId();
+    input.disabled = !item?.active || !item.verified || !item.supplier || item.stock < 1;
+    const price = input.closest('label')?.querySelector<HTMLElement>('[data-choice-price]');
+    if (price && item) price.textContent = money(item.price);
+  });
+  const savings = $('[data-pack-savings]');
+  if (savings) {
+    const components = [...new Set(config.landingPackComponentIds || [])];
+    const main = config.products.find((p) => p.id === config.productId);
+    const items = components.map((id) => config.products.find((p) => p.id === id));
+    const amount =
+      main &&
+      components.length >= 2 &&
+      components.every((id) => allowedLandingIds.has(id) && id !== config.productId) &&
+      items.every((p) => p?.active && p.verified && p.supplier && p.stock > 0)
+        ? items.reduce((sum, p) => sum + p!.price, 0) - main.price
+        : 0;
+    savings.hidden = amount <= 0;
+    if (amount > 0)
+      savings.textContent = t('توفير {amount} مقارنة بشراء المكونات منفصلة', {
+        amount: money(amount),
+      });
+  }
   if (p) {
     const choices = $('[data-offer-choices]');
-    const signature = JSON.stringify([p.price, p.offers, p.bundleMode, p.bundleLabel, p.stock]);
+    const signature = JSON.stringify([
+      p.id,
+      p.price,
+      p.offers,
+      p.bundleMode,
+      p.bundleLabel,
+      p.stock,
+    ]);
     if (choices && choices.dataset.signature !== signature) {
       const selected = currentOfferId();
       const chosenOffer = p.offers.some((offer) => offer.id === selected) ? selected : '';
@@ -706,7 +768,7 @@ async function updateQuote(refreshRevision = true) {
           reviewProducts = null;
         }
         if (directCheckout) {
-          const p = config.products.find((p) => p.id === config.productId);
+          const p = config.products.find((p) => p.id === purchaseProductId());
           if (p?.bundleMode && !bundleChoices(p).includes(directQuantity))
             setPurchaseQuantity(bundleChoices(p)[0] || 1);
           if (selectedOfferId && !p?.offers.some((o) => o.id === selectedOfferId)) {
@@ -770,7 +832,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (el.dataset.directQuantity) {
-    const p = config.products.find((p) => p.id === config.productId);
+    const p = config.products.find((p) => p.id === purchaseProductId());
     const next = directQuantity + Number(el.dataset.change);
     if (next < 1) return;
     if (next > Math.min(100, p?.stock || 0)) {
@@ -779,7 +841,7 @@ document.addEventListener('click', (e) => {
     }
     setPurchaseQuantity(next);
     try {
-      sessionStorage.setItem(directQuantityKey, String(next));
+      sessionStorage.setItem(directQuantityKey(), String(next));
     } catch {}
     quote = null;
     render();
@@ -866,7 +928,7 @@ $<HTMLDialogElement>('#replace-cart-dialog')?.addEventListener('close', () => {
   replacement = null;
 });
 document.querySelector<HTMLInputElement>('#product-quantity')?.addEventListener('input', () => {
-  const p = config.products.find((p) => p.id === config.productId);
+  const p = config.products.find((p) => p.id === purchaseProductId());
   if (p) selectedOfferId = quantityPrice(p, purchaseQuantity()).offerId;
   render();
   void updateQuote();
@@ -879,10 +941,10 @@ document.addEventListener('change', (event) => {
   if (!(select instanceof HTMLSelectElement) || !select.dataset.bundleQuantity) return;
   const quantity = Number(select.value);
   if (select.dataset.bundleDirect === 'true') {
-    const p = config.products.find((p) => p.id === config.productId);
+    const p = config.products.find((p) => p.id === purchaseProductId());
     if (!p || !bundleChoices(p).includes(quantity)) return;
     setPurchaseQuantity(quantity);
-    sessionStorage.setItem(directQuantityKey, String(quantity));
+    sessionStorage.setItem(directQuantityKey(), String(quantity));
     quote = null;
     render();
     void updateQuote();
@@ -894,6 +956,31 @@ document.addEventListener('change', (event) => {
     write(current.map((l) => (l.sku === line.sku ? chosen(p, '', quantity) : l)));
   }
 });
+document.addEventListener('change', (event) => {
+  const input = event.target;
+  if (
+    !(input instanceof HTMLInputElement) ||
+    input.name !== 'landing-product' ||
+    !config.landing ||
+    !allowedLandingIds.has(input.value)
+  )
+    return;
+  const p = config.products.find((p) => p.id === input.value);
+  if (!p?.active || !p.verified || !p.supplier || p.stock < 1) return;
+  selectedPurchaseId = p.id;
+  setPurchaseQuantity(1);
+  selectedOfferId = '';
+  quoteSerial++;
+  quote = null;
+  reviewProducts = null;
+  shippingRates = { casa: config.settings.shippingCasa, other: config.settings.shippingOther };
+  try {
+    sessionStorage.setItem(landingChoiceKey, p.id);
+    sessionStorage.setItem(directQuantityKey(), '1');
+  } catch {}
+  render();
+  void updateQuote();
+});
 // Offer controls may be rebuilt after a reviewed price/offer update.
 document.addEventListener('change', (event) => {
   const input = event.target;
@@ -903,7 +990,7 @@ document.addEventListener('change', (event) => {
     !input.closest('[data-offer-choices]')
   )
     return;
-  const p = config.products.find((p) => p.id === config.productId);
+  const p = config.products.find((p) => p.id === purchaseProductId());
   const chosen = p?.offers.find((o) => o.id === input.value);
   setPurchaseQuantity(chosen?.quantity ?? 1);
   quote = null;
@@ -970,7 +1057,7 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
       }
       localStorage.removeItem(attemptKey);
       if (directCheckout) {
-        sessionStorage.removeItem(directQuantityKey);
+        sessionStorage.removeItem(directQuantityKey());
       }
       form.reset();
       $('#order-ref')!.textContent = ref;
@@ -1109,7 +1196,7 @@ let tracking = false,
 function track(event: string, params: Record<string, unknown> = {}) {
   if (!tracking) return;
   const w = window as any,
-    p = config.products.find((p) => p.id === config.productId),
+    p = config.products.find((p) => p.id === purchaseProductId()),
     data = {
       currency: 'MAD',
       ...(p ? { content_ids: [p.sku], content_type: 'product', value: p.price / 100 } : {}),
@@ -1454,7 +1541,7 @@ async function refreshExpiredOffers() {
       await updateQuote();
       document.querySelectorAll<HTMLInputElement>('input[name=offer]').forEach((radio) => {
         const offer = config.products
-          .find((p) => p.id === config.productId)
+          .find((p) => p.id === purchaseProductId())
           ?.offers.find((o) => o.id === radio.value);
         if (offer?.endsAt && Date.parse(offer.endsAt) <= Date.now()) {
           radio.disabled = true;

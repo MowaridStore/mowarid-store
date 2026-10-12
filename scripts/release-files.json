@@ -172,5 +172,8 @@
   "src/shared/landing-appearance.ts",
   "src/admin/bulk-import.tsx",
   "src/server/catalog-import.ts",
-  "tests/e2e/bulk-import.spec.ts"
+  "tests/e2e/bulk-import.spec.ts",
+  "src/shared/landing-products.ts",
+  "tests/landing-products.test.ts",
+  "tests/e2e/landing-products.spec.ts"
 ]

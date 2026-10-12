@@ -177,6 +177,12 @@ export const productSchema = z.object({
         .strict()
         .optional(),
       crossSells: z.array(crossSellSchema).max(4).optional(),
+      landingProductIds: z.array(text(100).min(1)).max(6).optional(),
+      landingPackComponentIds: z.array(text(100).min(1)).max(6).optional(),
+      landingCodBadge: z
+        .object({ visible: z.boolean().optional(), text: text(150).optional() })
+        .strict()
+        .optional(),
       landingLanguage: language.optional(),
       landingFormAppearance: landingFormAppearanceSchema.optional(),
       landingFooter: z

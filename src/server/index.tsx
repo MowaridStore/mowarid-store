@@ -13,7 +13,8 @@ import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
 import { bodyLimit } from 'hono/body-limit';
 import { ZodError } from 'zod';
-import type { Settings } from '../shared/types';
+import type { Product, Settings } from '../shared/types';
+import { landingProducts } from '../shared/landing-products';
 import type { Env } from './db';
 import { settings, products, productBySlug, categories, cartProducts } from './db';
 import { DomainError } from '../shared/domain';
@@ -115,7 +116,41 @@ app.get('/media/:id', async (c) => {
   c.executionCtx.waitUntil(cache.put(key, response.clone()));
   return response;
 });
+async function landingCandidates(env: Env, p: Product, s: Settings) {
+  return landingProducts(
+    p,
+    await safeProducts(env, await cartProducts(env.DB, p.presentation?.landingProductIds || []), s),
+  );
+}
 app.get('/', async (c) => {
+  const published = (
+    await c.env.DB.prepare('SELECT slug,page_mode FROM products WHERE active=1 LIMIT 2').all<{
+      slug: string;
+      page_mode: string;
+    }>()
+  ).results;
+  if (published.length === 1 && published[0].page_mode === 'landing') {
+    const rawSettings = await settings(c.env.DB);
+    const original = await productBySlug(c.env.DB, published[0].slug);
+    const p = original ? (await safeProducts(c.env, [original], rawSettings))[0] : undefined;
+    if (p?.active) {
+      const s = productSettings(c, rawSettings, p);
+      const all = await landingCandidates(c.env, p, s);
+      c.header('Cache-Control', 'no-store');
+      return c.html(
+        <Layout
+          pageUrl={c.req.url}
+          s={s}
+          products={all}
+          product={p}
+          title={p.name}
+          development={c.env.ENVIRONMENT === 'development'}
+        >
+          <ProductPage p={p} s={s} recommendations={all} />
+        </Layout>,
+      );
+    }
+  }
   const s = visitorSettings(c, await settings(c.env.DB)),
     p = (await safeProducts(c.env, await products(c.env.DB, true), s)).filter((p) => p.active);
   const query = (c.req.query('q') || '').trim().slice(0, 200);
@@ -145,9 +180,12 @@ app.get('/products/:slug', async (c) => {
   const p = rawProduct
     ? (await safeProducts(c.env, [rawProduct], rawSettings)).find((p) => p.id === rawProduct.id)
     : undefined;
-  if (!p) return c.notFound();
+  if (!p?.active) return c.notFound();
   const s = productSettings(c, rawSettings, p);
-  const all = p.pageMode === 'landing' ? [p] : await products(c.env.DB, true);
+  const all =
+    p.pageMode === 'landing'
+      ? await landingCandidates(c.env, p, s)
+      : await products(c.env.DB, true);
 
   if (!all.some((item) => item.id === p.id)) all.push(p);
   c.header('Cache-Control', 'no-store');
@@ -177,8 +215,10 @@ for (const [path, mode] of [
       ...(await safeProducts(c.env, [original], rawSettings)).find((p) => p.id === original.id)!,
       pageMode: mode,
     };
+    if (!p.active) return c.notFound();
     const s = productSettings(c, rawSettings, p);
-    const all = mode === 'landing' ? [p] : await products(c.env.DB, true);
+    const all =
+      mode === 'landing' ? await landingCandidates(c.env, p, s) : await products(c.env.DB, true);
 
     if (!all.some((item) => item.id === p.id)) all.push(p);
     c.header('Cache-Control', 'no-store');

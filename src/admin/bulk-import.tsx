@@ -21,6 +21,10 @@ const batchSize = 8;
 function remembered(scope: string): Progress | null {
   try {
     const p = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+    if (p && Array.isArray(p.skus) && p.offset >= p.skus.length) {
+      sessionStorage.removeItem(storageKey);
+      return null;
+    }
     return p?.version === 1 &&
       p.scope === scope &&
       ['published', 'draft'].includes(p.mode) &&
@@ -74,7 +78,8 @@ export function BulkImporter({
     progress?.items.filter((item) => item.status === status).length || 0;
   const persist = (p: Progress) => {
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify(p));
+      if (p.offset >= p.skus.length) sessionStorage.removeItem(storageKey);
+      else sessionStorage.setItem(storageKey, JSON.stringify(p));
     } catch {}
     if (mounted.current) setProgress(p);
   };
@@ -145,6 +150,11 @@ export function BulkImporter({
     };
   }, []);
   useEffect(() => {
+    if (!progress || busy || progress.offset < progress.skus.length) return;
+    const timer = setTimeout(() => setProgress(null), 12000);
+    return () => clearTimeout(timer);
+  }, [progress, busy]);
+  useEffect(() => {
     setPage(1);
   }, [query]);
   useEffect(() => {
@@ -207,6 +217,11 @@ export function BulkImporter({
               total: progress.skus.length,
             })}
           </p>
+          {progress.offset >= progress.skus.length && (
+            <button type="button" className="small-button" onClick={() => setProgress(null)}>
+              {t('إغلاق')}
+            </button>
+          )}
           <progress value={progress.offset} max={Math.max(1, progress.skus.length)} />
           <div className="toolbar bulk-import-counts">
             <span>

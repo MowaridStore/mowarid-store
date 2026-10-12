@@ -8,6 +8,7 @@ import { policyHtml } from './policy-content';
 import { landingFormAppearance } from '../shared/landing-appearance';
 declare const __STYLE_VERSION__: string;
 declare const __STORE_VERSION__: string;
+import { landingProducts, landingPackSavings } from '../shared/landing-products';
 import type { Settings, Product, FormContent, Category } from '../shared/types';
 import { publicProduct, formDefaults, defaults } from '../shared/types';
 import {
@@ -134,6 +135,9 @@ export function Layout({
     direct,
     checkout,
     productId: product?.id,
+    landingProductIds:
+      landing && product ? landingProducts(product, products).map((p) => p.id) : undefined,
+    landingPackComponentIds: landing ? product?.presentation?.landingPackComponentIds : undefined,
     development,
     searchIds,
   };
@@ -616,7 +620,6 @@ export function Home({
                   ) : (
                     <Icon name="bag" size={70} />
                   )}
-                  <span>{p.name}</span>
                 </div>
               ))}
               {!products.length && (
@@ -873,11 +876,17 @@ export function ProductPage({
               </a>
             </div>
           ) : (
-            <OrderForm p={p} s={s} content={b.settings} preview={preview} />
+            <OrderForm
+              p={p}
+              s={s}
+              content={b.settings}
+              preview={preview}
+              choices={recommendations}
+            />
           ),
         )}
         {!hasForm && !p.blocks.some((b) => b.type === 'ORDER_FORM') && (
-          <OrderForm p={p} s={s} preview={preview} />
+          <OrderForm p={p} s={s} preview={preview} choices={recommendations} />
         )}
       </main>
     );
@@ -1110,6 +1119,7 @@ export function ProductPage({
   );
 }
 export function OrderForm({
+  choices = [],
   p,
   s,
   content = {},
@@ -1120,6 +1130,7 @@ export function OrderForm({
   direct?: boolean;
   s: Settings;
   content?: FormContent;
+  choices?: Product[];
   preview?: boolean;
 }) {
   s = storefrontSettings(landingSettings(s, p));
@@ -1130,6 +1141,9 @@ export function OrderForm({
   const formDefault = localizedForm(s);
   const f = localizedForm(s, content);
   const appearance = p?.pageMode === 'landing' ? landingFormAppearance(p, s) : null;
+  const alternatives = p?.pageMode === 'landing' ? landingProducts(p, choices) : [];
+  const packSavings = p ? landingPackSavings(p, choices) : 0;
+  const badge = p?.pageMode === 'landing' ? p.presentation?.landingCodBadge : undefined;
   return (
     <section
       id="order-form"
@@ -1175,8 +1189,46 @@ export function OrderForm({
               : t('إتمام طلبك')}
           </h2>
         </div>
-        <span class="cod-badge">{t('الدفع عند الاستلام ✓')}</span>
+        {badge?.visible !== false && (
+          <span class="cod-badge">{badge?.text ?? t('الدفع عند الاستلام ✓')}</span>
+        )}
       </div>
+      {alternatives.length > 1 && (
+        <fieldset class="landing-product-choices" data-landing-products>
+          <legend>{t('اختر المنتج الذي تريد طلبه')}</legend>
+          <div class="offer-choices">
+            {alternatives.map((choice) => {
+              const item = pricedProduct(localizedProduct(choice, s.storeLanguage));
+              return (
+                <label class="offer-card landing-product-choice">
+                  <input
+                    type="radio"
+                    name="landing-product"
+                    value={item.id}
+                    checked={item.id === p?.id}
+                    disabled={!item.active || !item.verified || !item.supplier || item.stock < 1}
+                  />
+                  {item.image && (
+                    <img src={item.image} alt="" width="56" height="56" loading="lazy" />
+                  )}
+                  <span>
+                    <b>{item.name}</b>
+                    {item.id === p?.id &&
+                      (p.presentation?.landingPackComponentIds?.length || 0) >= 2 && (
+                        <small data-pack-savings hidden={packSavings <= 0}>
+                          {t('توفير {amount} مقارنة بشراء المكونات منفصلة', {
+                            amount: money(packSavings),
+                          })}
+                        </small>
+                      )}
+                  </span>
+                  <strong data-choice-price={item.id}>{money(item.price)}</strong>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
       {p && !direct && (
         <div class="offer-options">
           <OfferChoices p={p} s={s} />
@@ -1396,7 +1448,12 @@ function DescriptionPanel({ p, s }: { p: Product; s: Settings }) {
     </details>
   );
 }
-export async function previewHTML(p: Product, s: Settings, language?: Settings['storeLanguage']) {
+export async function previewHTML(
+  p: Product,
+  s: Settings,
+  language?: Settings['storeLanguage'],
+  choices: Product[] = [],
+) {
   if (language && p.pageMode !== 'landing') s = { ...s, storeLanguage: language };
   s = storefrontSettings(landingSettings(s, p));
   if (p) p = pricedProduct(p);
@@ -1408,13 +1465,13 @@ export async function previewHTML(p: Product, s: Settings, language?: Settings['
     (await (
       <Layout
         s={s}
-        products={[p]}
+        products={landingProducts(p, choices)}
         product={p}
         title={t('معاينة · ') + p.name}
         development={false}
         preview
       >
-        <ProductPage p={p} s={s} preview />
+        <ProductPage p={p} s={s} recommendations={choices} preview />
       </Layout>
     ).toString())
   );

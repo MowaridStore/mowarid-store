@@ -11,6 +11,10 @@ export type ProductPresentation = ProductDescription & {
   landingLanguage?: Language;
   landingFormAppearance?: Partial<LandingFormAppearance>;
   landingFooter?: { contact?: boolean; socials?: boolean };
+  landingProductIds?: string[];
+  /** Explicitly selected individual components of the main pack, one of each. */
+  landingPackComponentIds?: string[];
+  landingCodBadge?: { visible?: boolean; text?: string };
   contentLanguage?: Language;
   deliveryReturns?: string;
   recommendationMode?: 'auto' | 'manual' | 'hidden';

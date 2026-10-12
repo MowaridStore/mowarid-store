@@ -1467,6 +1467,10 @@ api.post('/admin/preview', async (c) => {
       },
       await settings(c.env.DB),
       previewLanguage,
+      await safeProducts(
+        c.env,
+        await cartProducts(c.env.DB, p.presentation?.landingProductIds || []),
+      ),
     ),
   });
 });

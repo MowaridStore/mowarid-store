@@ -5222,5 +5222,57 @@
   "تعذر إكمال دفعة الاستيراد. اضغط متابعة الاستيراد للمحاولة مجددًا.": {
     "en": "The import batch could not finish. Select Resume import to retry.",
     "fr": "Le lot n’a pas pu être importé. Cliquez sur Reprendre l’importation pour réessayer."
+  },
+  "حالة المنتجات": {
+    "en": "Product status",
+    "fr": "Statut des produits"
+  },
+  "كل المنتجات": {
+    "en": "All products",
+    "fr": "Tous les produits"
+  },
+  "مفعّلة": {
+    "en": "Published",
+    "fr": "Publiés"
+  },
+  "المنتجات المتاحة في استمارة الهبوط": {
+    "en": "Products in the landing order form",
+    "fr": "Produits du formulaire de commande"
+  },
+  "المنتج الحالي متاح تلقائيًا. اختر حتى 6 منتجات إضافية؛ يطلب الزائر منتجًا واحدًا بسعره وباقاته. تظهر المنتجات المنشورة والمتوفرة فقط، حتى إن كانت مخفية من واجهة المتجر.": {
+    "en": "The current product is included. Choose up to 6 alternatives; visitors order one product using its prices and bundles. Only published, available products appear, including products hidden from the storefront.",
+    "fr": "Le produit actuel est inclus. Choisissez jusqu’à 6 alternatives ; le visiteur commande un seul produit avec ses prix et lots. Seuls les produits publiés et disponibles apparaissent, y compris ceux masqués dans la boutique."
+  },
+  "مكوّن من الباك الحالي (قطعة واحدة)": {
+    "en": "Component of this pack (one unit)",
+    "fr": "Composant de ce pack (une unité)"
+  },
+  "لحساب توفير الباك، حدّد مكوّناته الفردية فقط (منتجان على الأقل، قطعة من كل منتج). يظهر التوفير عندما يكون الباك أرخص من مجموع أسعارها الحالية. عدّل سعر كل منتج من صفحته.": {
+    "en": "To calculate pack savings, select its individual components only (at least two products, one unit each). Savings appear when the pack costs less than their current combined prices. Edit each product’s price in its editor.",
+    "fr": "Pour calculer l’économie du pack, sélectionnez uniquement ses composants individuels (au moins deux produits, une unité chacun). L’économie apparaît si le pack coûte moins que la somme de leurs prix actuels. Modifiez le prix de chaque produit dans sa fiche."
+  },
+  "شارة الدفع أعلى الاستمارة": {
+    "en": "Payment badge above the form",
+    "fr": "Badge de paiement au-dessus du formulaire"
+  },
+  "إظهار شارة الدفع أعلى استمارة الهبوط": {
+    "en": "Show the payment badge above the landing form",
+    "fr": "Afficher le badge de paiement au-dessus du formulaire"
+  },
+  "نص شارة الدفع": {
+    "en": "Payment badge text",
+    "fr": "Texte du badge de paiement"
+  },
+  "تغيير هذه الشارة لا يغيّر طريقة الدفع أو نص زر تأكيد الطلب.": {
+    "en": "Changing this badge does not change the payment method or the order button text.",
+    "fr": "Modifier ce badge ne change ni le mode de paiement ni le texte du bouton de commande."
+  },
+  "اختر المنتج الذي تريد طلبه": {
+    "en": "Choose the product you want to order",
+    "fr": "Choisissez le produit à commander"
+  },
+  "توفير {amount} مقارنة بشراء المكونات منفصلة": {
+    "en": "Save {amount} compared with buying the components separately",
+    "fr": "Économisez {amount} par rapport aux composants achetés séparément"
   }
 }

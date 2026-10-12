@@ -2176,6 +2176,8 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     [errors, setErrors] = useState<Record<string, FieldIssue>>({}),
     [catalogSearch, setCatalogSearch] = useState(''),
     [productSearch, setProductSearch] = useState(''),
+    [productStatus, setProductStatus] = useState('all'),
+    [landingChoiceSearch, setLandingChoiceSearch] = useState(''),
     [descriptionSource, setDescriptionSource] = useState<'text' | 'html'>('text'),
     [linkedCatalog, setLinkedCatalog] = useState<any>(null),
     [draft, setDraft] = useState<Product | null>(null),
@@ -2384,6 +2386,9 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
       }),
       '',
     );
+  const matchesProduct = (p: Product) =>
+    normalizeSearch(p.name + ' ' + p.sku).includes(normalizeSearch(productSearch)) &&
+    (productStatus === 'all' || (productStatus === 'published' ? !!p.active : !p.active));
   if (!draft)
     return (
       <section className="panel">
@@ -2400,6 +2405,18 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
           </button>
           <button onClick={() => void action(load, t('تم تحديث المنتجات.'))}>{t('تحديث')}</button>
         </BulkImporter>
+        <label className="products-status-filter">
+          {t('حالة المنتجات')}
+          <select
+            aria-label={t('حالة المنتجات')}
+            value={productStatus}
+            onChange={(e) => setProductStatus(e.target.value)}
+          >
+            <option value="all">{t('كل المنتجات')}</option>
+            <option value="published">{t('مفعّلة')}</option>
+            <option value="draft">{t('مسودة')}</option>
+          </select>
+        </label>
         <div className="table-wrap">
           <table className="admin-products-table">
             <thead>
@@ -2413,56 +2430,50 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
               </tr>
             </thead>
             <tbody>
-              {rows
-                .filter((p) =>
-                  normalizeSearch(p.name + ' ' + p.sku).includes(normalizeSearch(productSearch)),
-                )
-                .map((p) => (
-                  <tr key={p.id}>
-                    <td className="admin-product-title">
-                      <div className="product-cell">
-                        {p.image && (
-                          <img src={p.image} alt="" loading="lazy" width="48" height="48" />
-                        )}
-                        <span>
-                          {p.name}
-                          <small>{p.sku}</small>
-                        </span>
-                      </div>
-                    </td>
-                    <td data-label={t('القسم')}>
-                      {categories.find((c) => c.id === p.categoryId)?.name || t('دون قسم')}
-                    </td>
-                    <td data-label={t('السعر')}>{money(p.price)}</td>
-                    <td data-label={t('التوفر')}>
-                      {p.stock > 0 ? t('متاح للطلب') : t('غير متوفر حاليًا')}
-                    </td>
-                    <td data-label={t('الحالة')}>
-                      <span className={'badge ' + (p.verified ? 'ok' : 'error')}>
-                        {p.active
-                          ? p.storefrontVisible === 0
-                            ? t('بالرابط فقط')
-                            : t('ظاهر في المتجر')
-                          : t('مسودة')}{' '}
-                        · {p.verified ? t('موثق') : t('غير موثق')}
+              {rows.filter(matchesProduct).map((p) => (
+                <tr key={p.id}>
+                  <td className="admin-product-title">
+                    <div className="product-cell">
+                      {p.image && (
+                        <img src={p.image} alt="" loading="lazy" width="48" height="48" />
+                      )}
+                      <span>
+                        {p.name}
+                        <small>{p.sku}</small>
                       </span>
-                    </td>
-                    <td className="admin-product-actions">
-                      <button className="small-button" onClick={() => setDraft(prepareProduct(p))}>
-                        {t('تعديل')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                    </div>
+                  </td>
+                  <td data-label={t('القسم')}>
+                    {categories.find((c) => c.id === p.categoryId)?.name || t('دون قسم')}
+                  </td>
+                  <td data-label={t('السعر')}>{money(p.price)}</td>
+                  <td data-label={t('التوفر')}>
+                    {p.stock > 0 ? t('متاح للطلب') : t('غير متوفر حاليًا')}
+                  </td>
+                  <td data-label={t('الحالة')}>
+                    <span className={'badge ' + (p.verified ? 'ok' : 'error')}>
+                      {p.active
+                        ? p.storefrontVisible === 0
+                          ? t('بالرابط فقط')
+                          : t('ظاهر في المتجر')
+                        : t('مسودة')}{' '}
+                      · {p.verified ? t('موثق') : t('غير موثق')}
+                    </span>
+                  </td>
+                  <td className="admin-product-actions">
+                    <button className="small-button" onClick={() => setDraft(prepareProduct(p))}>
+                      {t('تعديل')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
         {!rows.length && <p className="empty-state">{t('أضف منتجًا واربطه بكتالوج مورد.')}</p>}
-        {!!rows.length &&
-          !!productSearch &&
-          !rows.some((p) =>
-            normalizeSearch(p.name + ' ' + p.sku).includes(normalizeSearch(productSearch)),
-          ) && <p className="empty-state">{t('لا توجد منتجات مطابقة للبحث.')}</p>}
+        {!!rows.length && !rows.some(matchesProduct) && (
+          <p className="empty-state">{t('لا توجد منتجات مطابقة للبحث.')}</p>
+        )}
       </section>
     );
   return (
@@ -3314,6 +3325,122 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                   'اختر اللغة المطابقة للصورة. الأزرار والاستمارة والسياسات بهذه اللغة، دون زر تبديل للزائر. يمكنك تعديل النصوص الخاصة بها أدناه.',
                 )}
               </p>
+            </div>
+            <details className="landing-products-editor" open>
+              <summary>{t('المنتجات المتاحة في استمارة الهبوط')}</summary>
+              <p className="muted">
+                {t(
+                  'المنتج الحالي متاح تلقائيًا. اختر حتى 6 منتجات إضافية؛ يطلب الزائر منتجًا واحدًا بسعره وباقاته. تظهر المنتجات المنشورة والمتوفرة فقط، حتى إن كانت مخفية من واجهة المتجر.',
+                )}
+              </p>
+              <label>
+                {t('البحث باسم أو كود المنتج')}
+                <input
+                  type="search"
+                  value={landingChoiceSearch}
+                  onChange={(e) => setLandingChoiceSearch(e.target.value)}
+                />
+              </label>
+              <div className="landing-products-picker">
+                {rows
+                  .filter(
+                    (p) =>
+                      p.id !== draft.id &&
+                      normalizeSearch(p.name + ' ' + p.sku).includes(
+                        normalizeSearch(landingChoiceSearch),
+                      ),
+                  )
+                  .map((p) => {
+                    const ids = draft.presentation?.landingProductIds || [];
+                    const selected = ids.includes(p.id);
+                    const componentIds = draft.presentation?.landingPackComponentIds || [];
+                    return (
+                      <div className="landing-product-pick" key={p.id}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={!selected && ids.length >= 6}
+                            onChange={(e) =>
+                              patch('presentation', {
+                                ...draft.presentation,
+                                landingProductIds: e.target.checked
+                                  ? [...ids, p.id]
+                                  : ids.filter((id) => id !== p.id),
+                                landingPackComponentIds: e.target.checked
+                                  ? componentIds
+                                  : componentIds.filter((id) => id !== p.id),
+                              })
+                            }
+                          />
+                          {p.image && (
+                            <img src={p.image} alt="" width="48" height="48" loading="lazy" />
+                          )}
+                          <span>
+                            {p.name}
+                            <small>
+                              {p.sku} · {money(p.price)} ·{' '}
+                              {t(
+                                p.active && p.verified && p.stock > 0
+                                  ? 'متاح للطلب'
+                                  : 'غير متوفر حاليًا',
+                              )}
+                            </small>
+                          </span>
+                        </label>
+                        {selected && (
+                          <Check
+                            label={t('مكوّن من الباك الحالي (قطعة واحدة)')}
+                            value={componentIds.includes(p.id)}
+                            onChange={(checked) =>
+                              patch('presentation', {
+                                ...draft.presentation,
+                                landingPackComponentIds: checked
+                                  ? [...componentIds, p.id]
+                                  : componentIds.filter((id) => id !== p.id),
+                              })
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+              <p className="muted">
+                {t(
+                  'لحساب توفير الباك، حدّد مكوّناته الفردية فقط (منتجان على الأقل، قطعة من كل منتج). يظهر التوفير عندما يكون الباك أرخص من مجموع أسعارها الحالية. عدّل سعر كل منتج من صفحته.',
+                )}
+              </p>
+            </details>
+            <div className="product-presentation-links landing-cod-badge-settings">
+              <strong>{t('شارة الدفع أعلى الاستمارة')}</strong>
+              <Check
+                label={t('إظهار شارة الدفع أعلى استمارة الهبوط')}
+                value={draft.presentation?.landingCodBadge?.visible !== false}
+                onChange={(visible) =>
+                  patch('presentation', {
+                    ...draft.presentation,
+                    landingCodBadge: { ...draft.presentation?.landingCodBadge, visible },
+                  })
+                }
+              />
+              <label>
+                {t('نص شارة الدفع')}
+                <input
+                  maxLength={150}
+                  value={draft.presentation?.landingCodBadge?.text ?? t('الدفع عند الاستلام ✓')}
+                  onChange={(e) =>
+                    patch('presentation', {
+                      ...draft.presentation,
+                      landingCodBadge: {
+                        ...draft.presentation?.landingCodBadge,
+                        text: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+              <small>{t('تغيير هذه الشارة لا يغيّر طريقة الدفع أو نص زر تأكيد الطلب.')}</small>
             </div>
             <div className="product-presentation-links landing-footer-settings">
               <strong>{t('التواصل أسفل صفحة الهبوط')}</strong>
