@@ -179,6 +179,10 @@ export const productSchema = z.object({
       crossSells: z.array(crossSellSchema).max(4).optional(),
       landingLanguage: language.optional(),
       landingFormAppearance: landingFormAppearanceSchema.optional(),
+      landingFooter: z
+        .object({ contact: z.boolean().optional(), socials: z.boolean().optional() })
+        .strict()
+        .optional(),
       contentLanguage: language.optional(),
       promotion: z
         .object({

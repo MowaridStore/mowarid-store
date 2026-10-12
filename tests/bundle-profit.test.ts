@@ -32,17 +32,22 @@ describe('whole-bundle profit display', () => {
     const html = render(2, 28000);
     expect(html).toContain('إجمالي الربح الصافي للباقة (تقريبي)');
     expect(html).toContain('<strong>120 MAD</strong>');
+    expect(html).toContain('متوسط الربح الصافي للحبة (تقريبي)');
+    expect(html).toContain('<strong>60 MAD</strong>');
     expect(html).not.toContain('160 MAD');
     expect(html).toContain('للكمية الكاملة');
     expect(html).toContain('2');
   });
   it('recalculates total quantity and subtracts the one delivery charge when the bundle ships free', () => {
     expect(render(3, 28000)).toContain('<strong>40 MAD</strong>');
-    expect(render(3, 28000, true)).toContain('<strong>10 MAD</strong>');
+    const html = render(3, 28000, true);
+    expect(html).toContain('<strong>10 MAD</strong>');
+    expect(html).toContain('<strong>3.33 MAD</strong>');
   });
   it('keeps zero, losses and unknown supplier costs explicit', () => {
     expect(render(2, 19000, true)).toContain('<strong>0 MAD</strong>');
     expect(render(2, 18000, true)).toContain('<strong>-10 MAD</strong>');
+    expect(render(2, 18000, true)).toContain('<strong>-5 MAD</strong>');
     expect(render(2, 28000, false, null)).toContain('غير متاح');
   });
 });

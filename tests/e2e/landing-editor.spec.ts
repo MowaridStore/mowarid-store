@@ -189,12 +189,13 @@ test('featured products get their badge and priority, and bundle profit shows th
     await expect(bundle.locator('.profit-line')).toContainText(
       'إجمالي الربح الصافي للباقة (تقريبي)',
     );
-    await expect(bundle.locator('.profit-line strong')).toContainText('120');
+    await expect(bundle.locator('.profit-total strong')).toContainText('120');
+    await expect(bundle.locator('.profit-unit strong')).toContainText('60');
     await expect(bundle.locator('.profit-scope')).toContainText('2');
     await bundle.getByLabel('الكمية', { exact: true }).fill('3');
-    await expect(bundle.locator('.profit-line strong')).toContainText('40');
+    await expect(bundle.locator('.profit-total strong')).toContainText('40');
     await bundle.getByRole('combobox').selectOption('free');
-    await expect(bundle.locator('.profit-line strong')).toContainText('10');
+    await expect(bundle.locator('.profit-total strong')).toContainText('10');
   } finally {
     for (const product of [bag, candle])
       expect(
@@ -314,5 +315,87 @@ test('landing form colors persist independently of regular checkout and another 
     expect(
       (await page.request.put('/api/admin/products/' + bag.id, { headers, data: bag })).ok(),
     ).toBe(true);
+  }
+});
+
+test('landing footer switches preserve store contacts and the floating WhatsApp button', async ({
+  page,
+}) => {
+  const headers = await owner(page);
+  const original = (await (await page.request.get('/api/admin/settings')).json()).settings;
+  const rows = await (await page.request.get('/api/admin/products')).json();
+  const bag = rows.find((p: any) => p.id === 'demo-bag');
+  const phoneLabel = 'إظهار الهاتف والبريد أسفل صفحة الهبوط';
+  const socialsLabel = 'إظهار روابط التواصل الاجتماعي أسفل صفحة الهبوط';
+  async function save(contact: boolean, socials: boolean) {
+    await edit(page, bag.sku);
+    await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
+    await page.getByLabel(phoneLabel, { exact: true }).setChecked(contact);
+    await page.getByLabel(socialsLabel, { exact: true }).setChecked(socials);
+    await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('تم حفظ المنتج.');
+  }
+  try {
+    expect(
+      (
+        await page.request.put('/api/admin/settings', {
+          headers,
+          data: {
+            ...original,
+            contactEmail: 'merchant@example.test',
+            contactPhone: '+212600000001',
+            whatsapp: '212600000002',
+            socials: { ...original.socials, facebook: 'https://facebook.com/example-store' },
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    await page.goto('/offers/' + bag.slug);
+    await expect(page.locator('.landing-footer a[href^="tel:"]')).toBeVisible();
+    await expect(
+      page.locator('.landing-footer .social-links a[aria-label="facebook"]'),
+    ).toBeVisible();
+    await save(false, true);
+    await page.goto('/offers/' + bag.slug);
+    await expect(page.locator('.landing-footer a[href^="tel:"]')).toHaveCount(0);
+    await expect(page.locator('.landing-footer a[href^="mailto:"]')).toHaveCount(0);
+    await expect(page.locator('.landing-footer .social-links')).toBeVisible();
+    await save(true, false);
+    await page.goto('/offers/' + bag.slug);
+    await expect(page.locator('.landing-footer a[href^="tel:"]')).toBeVisible();
+    await expect(page.locator('.landing-footer .social-links')).toHaveCount(0);
+    await save(false, false);
+    await edit(page, bag.sku);
+    await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
+    await expect(page.getByLabel(phoneLabel, { exact: true })).not.toBeChecked();
+    await expect(page.getByLabel(socialsLabel, { exact: true })).not.toBeChecked();
+    await page.getByRole('button', { name: 'معاينة صفحة الهبوط', exact: true }).click();
+    const preview = page.frameLocator('iframe[title="معاينة صفحة المنتج"]');
+    await expect(preview.locator('.landing-footer .store-contacts')).toHaveCount(0);
+    await expect(preview.locator('a.whatsapp')).toBeVisible();
+    for (const path of ['/offers/' + bag.slug, '/offers/' + bag.slug + '/policies/terms']) {
+      await page.goto(path);
+      await expect(page.locator('.landing-footer .store-contacts')).toHaveCount(0);
+      await expect(page.locator('a.whatsapp')).toBeVisible();
+    }
+    await page.goto('/shop/' + bag.slug);
+    await expect(page.locator('.store-footer a[href^="tel:"]')).toBeVisible();
+    await expect(
+      page.locator('.store-footer .social-links a[aria-label="facebook"]'),
+    ).toBeVisible();
+    await page.goto('/offers/calm-candle');
+    await expect(page.locator('.landing-footer a[href^="tel:"]')).toBeVisible();
+    await expect(page.locator('.landing-footer .social-links')).toBeVisible();
+    const savedSettings = (await (await page.request.get('/api/admin/settings')).json()).settings;
+    expect(savedSettings.contactPhone).toBe('+212600000001');
+    expect(savedSettings.contactEmail).toBe('merchant@example.test');
+    expect(savedSettings.whatsapp).toBe('212600000002');
+  } finally {
+    expect(
+      (await page.request.put('/api/admin/products/' + bag.id, { headers, data: bag })).ok(),
+    ).toBe(true);
+    expect((await page.request.put('/api/admin/settings', { headers, data: original })).ok()).toBe(
+      true,
+    );
   }
 });

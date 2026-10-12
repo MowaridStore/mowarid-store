@@ -10,6 +10,7 @@ export type ProductPresentation = ProductDescription & {
   promotion?: { price: number; endsAt?: string | null; startsAt?: string | null } | null;
   landingLanguage?: Language;
   landingFormAppearance?: Partial<LandingFormAppearance>;
+  landingFooter?: { contact?: boolean; socials?: boolean };
   contentLanguage?: Language;
   deliveryReturns?: string;
   recommendationMode?: 'auto' | 'manual' | 'hidden';

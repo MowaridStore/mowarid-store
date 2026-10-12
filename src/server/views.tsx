@@ -280,7 +280,11 @@ export function Layout({
         {children}
         {landing ? (
           <footer class="landing-footer">
-            <StoreContacts s={s} />
+            <StoreContacts
+              s={s}
+              showContact={(product || policyFor)?.presentation?.landingFooter?.contact !== false}
+              showSocials={(product || policyFor)?.presentation?.landingFooter?.socials !== false}
+            />
             {policyKeys.some((key) => policyVisible(s, key)) && (
               <details>
                 <summary>{t('السياسات')}</summary>
@@ -1478,30 +1482,40 @@ function SocialIcon({ name }: { name: string }) {
     </svg>
   );
 }
-function StoreContacts({ s }: { s: Settings }) {
+function StoreContacts({
+  s,
+  showContact = true,
+  showSocials = true,
+}: {
+  s: Settings;
+  showContact?: boolean;
+  showSocials?: boolean;
+}) {
+  const socials = showSocials ? Object.entries(s.socials).filter(([, url]) => url) : [];
+  if (!(showContact && (s.contactEmail || s.contactPhone)) && !socials.length) return null;
   return (
     <div class="store-contacts">
-      {s.contactEmail && (
+      {showContact && s.contactEmail && (
         <a href={'mailto:' + s.contactEmail}>
           <span aria-hidden="true">✉</span>
           {s.contactEmail}
         </a>
       )}
-      {s.contactPhone && (
+      {showContact && s.contactPhone && (
         <a href={'tel:' + s.contactPhone.replace(/[^+\d]/g, '')}>
           <Icon name="phone" />
           {s.contactPhone}
         </a>
       )}
-      <nav class="social-links" aria-label={storeTranslator(s)('تابعنا')}>
-        {Object.entries(s.socials)
-          .filter(([, url]) => url)
-          .map(([name, url]) => (
+      {!!socials.length && (
+        <nav class="social-links" aria-label={storeTranslator(s)('تابعنا')}>
+          {socials.map(([name, url]) => (
             <a href={url} target="_blank" rel="noopener noreferrer" aria-label={name} title={name}>
               <SocialIcon name={name} />
             </a>
           ))}
-      </nav>
+        </nav>
+      )}
     </div>
   );
 }

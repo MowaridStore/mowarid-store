@@ -3287,6 +3287,32 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 )}
               </p>
             </div>
+            <div className="product-presentation-links landing-footer-settings">
+              <strong>{t('التواصل أسفل صفحة الهبوط')}</strong>
+              <Check
+                label={t('إظهار الهاتف والبريد أسفل صفحة الهبوط')}
+                value={draft.presentation?.landingFooter?.contact !== false}
+                onChange={(contact) =>
+                  patch('presentation', {
+                    ...draft.presentation,
+                    landingFooter: { ...draft.presentation?.landingFooter, contact },
+                  })
+                }
+              />
+              <Check
+                label={t('إظهار روابط التواصل الاجتماعي أسفل صفحة الهبوط')}
+                value={draft.presentation?.landingFooter?.socials !== false}
+                onChange={(socials) =>
+                  patch('presentation', {
+                    ...draft.presentation,
+                    landingFooter: { ...draft.presentation?.landingFooter, socials },
+                  })
+                }
+              />
+              <p className="muted">
+                {t('هذه الخيارات خاصة بصفحة هبوط هذا المنتج. زر واتساب العائم مستقل عنها.')}
+              </p>
+            </div>
             <details className="landing-form-appearance" open>
               <summary>{t('ألوان استمارة الهبوط')}</summary>
               <p className="muted">

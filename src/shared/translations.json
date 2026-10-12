@@ -5074,5 +5074,25 @@
   "لون نص زر تأكيد الطلب": {
     "en": "Confirm order button text color",
     "fr": "Couleur du texte du bouton de confirmation"
+  },
+  "التواصل أسفل صفحة الهبوط": {
+    "en": "Contact details in the landing footer",
+    "fr": "Coordonnées en bas de la page de destination"
+  },
+  "إظهار الهاتف والبريد أسفل صفحة الهبوط": {
+    "en": "Show phone and email in the landing footer",
+    "fr": "Afficher le téléphone et l’e-mail en bas de la page de destination"
+  },
+  "إظهار روابط التواصل الاجتماعي أسفل صفحة الهبوط": {
+    "en": "Show social links in the landing footer",
+    "fr": "Afficher les liens des réseaux sociaux en bas de la page de destination"
+  },
+  "هذه الخيارات خاصة بصفحة هبوط هذا المنتج. زر واتساب العائم مستقل عنها.": {
+    "en": "These options apply only to this product’s landing page. The floating WhatsApp button is independent.",
+    "fr": "Ces options concernent uniquement la page de destination de ce produit. Le bouton WhatsApp flottant est indépendant."
+  },
+  "متوسط الربح الصافي للحبة (تقريبي)": {
+    "en": "Average net profit per item (estimated)",
+    "fr": "Bénéfice net moyen par article (estimé)"
   }
 }

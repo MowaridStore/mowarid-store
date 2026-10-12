@@ -68,10 +68,18 @@ export function ProfitPreview({
             className={'profit-line ' + (unsafe ? 'loss' : profit === 0 ? 'break-even' : 'gain')}
             key={index}
           >
-            <span>
+            <span className="profit-total">
               {t(option.bundle ? 'إجمالي الربح الصافي للباقة (تقريبي)' : 'ربحك الصافي التقريبي')}:{' '}
               <strong>{profit === null ? t('غير متاح') : money(profit)}</strong>
             </span>
+            {option.bundle && (
+              <span className="profit-unit">
+                {t('متوسط الربح الصافي للحبة (تقريبي)')}:{' '}
+                <strong>
+                  {profit === null ? t('غير متاح') : money(Math.round(profit / option.quantity))}
+                </strong>
+              </span>
+            )}
             {option.bundle && (
               <small className="profit-scope">
                 {t('للكمية الكاملة')}: {option.quantity}
