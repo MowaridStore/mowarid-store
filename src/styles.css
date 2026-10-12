@@ -5490,6 +5490,22 @@ td p {
   font-size: 1.1rem;
   white-space: nowrap;
 }
+.compact-profit .profit-scope {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  font-weight: 500;
+}
+.product-customization,
+.product-draft-preview {
+  scroll-margin-top: 110px;
+}
+.product-featured-note {
+  grid-column: 1 / -1;
+}
+.landing-editor-actions {
+  margin-block: 20px;
+}
 .bundle-mode {
   display: flex;
   align-items: center;

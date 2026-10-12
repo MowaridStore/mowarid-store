@@ -123,6 +123,7 @@ export function BundlesEditor({
                       label: offer.label,
                       total: offer.total,
                       quantity: offer.quantity,
+                      bundle: true,
                       freeShipping: offer.freeShipping,
                     },
                   ]}

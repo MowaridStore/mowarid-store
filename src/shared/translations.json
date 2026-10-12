@@ -4982,5 +4982,41 @@
   "نسّق النص باستخدام # للعناوين، و**نص** للخط العريض، و- للقوائم. يظهر التنسيق تلقائيًا في صفحة المتجر.": {
     "en": "Use # for headings, **text** for bold, and - for lists. Formatting appears automatically on the store page.",
     "fr": "Utilisez # pour les titres, **texte** pour le gras et - pour les listes. La mise en forme apparaît automatiquement sur la page."
+  },
+  "تعديل صفحة الهبوط": {
+    "en": "Edit landing page",
+    "fr": "Modifier la landing page"
+  },
+  "الرابط الأساسي للمنتج": {
+    "en": "Primary product link",
+    "fr": "Lien principal du produit"
+  },
+  "صور صفحة الهبوط وأزرارها واستمارتها": {
+    "en": "Landing page images, buttons and order form",
+    "fr": "Images, boutons et formulaire de la landing page"
+  },
+  "جهّز صفحة الإعلان للمنتج نفسه، حتى إذا كان الرابط الأساسي يعرض منتجًا عاديًا. ارفع الصور وأضف أزرار الشراء والاستمارة ورتّبها بالأسهم.": {
+    "en": "Build an advertising page for the same product, even when the primary link opens a regular product page. Upload images, add purchase buttons and an order form, and arrange them with the arrows.",
+    "fr": "Préparez une page publicitaire pour le même produit, même si le lien principal ouvre une page produit classique. Importez les images, ajoutez les boutons et le formulaire, puis organisez-les avec les flèches."
+  },
+  "معاينة صفحة الهبوط": {
+    "en": "Preview landing page",
+    "fr": "Prévisualiser la landing page"
+  },
+  "أضف استمارة طلب ظاهرة ليتمكن زر الشراء من الانتقال إليها.": {
+    "en": "Add a visible order form so the purchase button can scroll to it.",
+    "fr": "Ajoutez un formulaire de commande visible pour que le bouton d’achat puisse y accéder."
+  },
+  "إجمالي الربح الصافي للباقة (تقريبي)": {
+    "en": "Total estimated net profit for this bundle",
+    "fr": "Bénéfice net total estimé de ce pack"
+  },
+  "للكمية الكاملة": {
+    "en": "For the full quantity",
+    "fr": "Pour la quantité totale"
+  },
+  "المنتج المميز يظهر قبل المنتجات غير المميزة، وتظهر على بطاقته شارة التميّز. يجب حفظه ونشره وإظهاره في المتجر.": {
+    "en": "Featured products appear before other products and show a badge on their card. Save, publish and display the product in the store.",
+    "fr": "Les produits mis en avant apparaissent avant les autres et portent un badge. Enregistrez, publiez et affichez le produit dans la boutique."
   }
 }

@@ -2114,9 +2114,9 @@ api.delete('/admin/media/:id', async (c) => {
       .first<{ url: string }>();
   if (!r) throw new DomainError('not_found', 'الصورة غير موجودة.', 404);
   const used = await c.env.DB.prepare(
-    'SELECT id FROM products WHERE image=? OR blocks LIKE ? LIMIT 1',
+    'SELECT id FROM products WHERE image=? OR instr(blocks,?)>0 LIMIT 1',
   )
-    .bind(r.url, '%' + r.url + '%')
+    .bind(r.url, r.url)
     .first();
   const s = await settings(c.env.DB);
   if (used || s.logo === r.url || s.favicon === r.url)

@@ -20,6 +20,7 @@ export function ProfitPreview({
     quantity: number;
     freeShipping?: boolean;
     repeatable?: boolean;
+    bundle?: boolean;
   }[];
   t: (key: string) => string;
   money: (amount: number) => string;
@@ -68,9 +69,14 @@ export function ProfitPreview({
             key={index}
           >
             <span>
-              {t('ربحك الصافي التقريبي')}:{' '}
+              {t(option.bundle ? 'إجمالي الربح الصافي للباقة (تقريبي)' : 'ربحك الصافي التقريبي')}:{' '}
               <strong>{profit === null ? t('غير متاح') : money(profit)}</strong>
             </span>
+            {option.bundle && (
+              <small className="profit-scope">
+                {t('للكمية الكاملة')}: {option.quantity}
+              </small>
+            )}
             {profit === 0 && !unsafe && <small>{t('لا يوجد ربح')}</small>}
             {unsafe && (
               <small className="field-error">

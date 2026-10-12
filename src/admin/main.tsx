@@ -2154,6 +2154,7 @@ function CatalogPrices({ catalog }: { catalog: Record<string, any> }) {
 function Products({ action, clearValidation }: { action: Action; clearValidation: () => void }) {
   const [sectionsCollapsed, setSectionsCollapsed] = useState(false);
   const validationFailure = useRef(false);
+  const landingEditor = useRef<HTMLDetailsElement>(null);
   const [pricingSettings, setPricingSettings] = useState<Settings>(defaults);
   const [maximumShipping, setMaximumShipping] = useState<number | null>(null);
   const [providerShipping, setProviderShipping] = useState<ShippingCosts | null>(null);
@@ -2168,6 +2169,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
     [preview, setPreview] = useState(false),
     [previewDocument, setPreviewDocument] = useState(''),
     [previewLanguage, setPreviewLanguage] = useState<Language>('ar'),
+    [previewMode, setPreviewMode] = useState<'product' | 'landing'>('product'),
     [previewLoading, setPreviewLoading] = useState(false),
     [shippingDefaults, setShippingDefaults] = useState({
       casa: defaults.shippingCasa,
@@ -2340,6 +2342,31 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
       next.map((b, i) => ({ ...b, order: i })),
     );
   };
+  const previewDraft = (mode: 'product' | 'landing') =>
+    void action(
+      submit(async () => {
+        const r = await api('/admin/preview', {
+          ...draft,
+          pageMode: mode,
+          presentation: {
+            ...draft!.presentation,
+            landingLanguage,
+            contentLanguage: contentBaseLanguage,
+          },
+          previewLanguage: mode === 'landing' ? landingLanguage : storeLanguage,
+        });
+        setPreviewMode(mode);
+        setPreviewLanguage(mode === 'landing' ? landingLanguage : storeLanguage);
+        setPreviewDocument(r.html);
+        setPreview(true);
+        requestAnimationFrame(() =>
+          document
+            .querySelector('.product-draft-preview')
+            ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+        );
+      }),
+      '',
+    );
   if (!draft)
     return (
       <section className="panel">
@@ -2444,28 +2471,19 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
             <small>{t(draft.active ? 'سيُنشر عند الحفظ' : 'سيُحفظ كمسودة')}</small>
           </div>
         </div>
-        <button
-          onClick={() =>
-            void action(
-              submit(async () => {
-                const r = await api('/admin/preview', {
-                  ...draft,
-                  presentation: {
-                    ...draft.presentation,
-                    landingLanguage,
-                    contentLanguage: contentBaseLanguage,
-                  },
-                  previewLanguage: storeLanguage,
-                });
-                setPreviewLanguage(draft.pageMode === 'landing' ? landingLanguage : storeLanguage);
-                setPreviewDocument(r.html);
-                setPreview(true);
-              }),
-              '',
-            )
-          }
-        >
+        <button onClick={() => previewDraft(draft.pageMode || 'product')}>
           {t('معاينة المسودة')}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (landingEditor.current) {
+              landingEditor.current.open = true;
+              landingEditor.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }}
+        >
+          {t('تعديل صفحة الهبوط')}
         </button>
         <button
           type="button"
@@ -2490,7 +2508,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
         <button onClick={() => setDraft(null)}>{t('العودة للمنتجات')}</button>
       </div>
       {preview && (
-        <section className="panel">
+        <section className="panel product-draft-preview">
           <div className="toolbar">
             <h3>
               {t('معاينة قبل النشر ·')}
@@ -2499,7 +2517,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
             <button className="small-button" onClick={() => setPreview(false)}>
               {t('إغلاق المعاينة')}
             </button>
-            {draft.pageMode !== 'landing' && (
+            {previewMode !== 'landing' && (
               <label>
                 {t('لغة المعاينة')}
                 <select
@@ -2512,6 +2530,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     void action(async () => {
                       const result = await api('/admin/preview', {
                         ...draft,
+                        pageMode: previewMode,
                         presentation: {
                           ...draft.presentation,
                           landingLanguage,
@@ -3154,6 +3173,11 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     value={!!draft.featured}
                     onChange={(v) => patch('featured', Number(v))}
                   />
+                  <p className="muted product-featured-note">
+                    {t(
+                      'المنتج المميز يظهر قبل المنتجات غير المميزة، وتظهر على بطاقته شارة التميّز. يجب حفظه ونشره وإظهاره في المتجر.',
+                    )}
+                  </p>
                   <Field
                     path="color"
                     label={t('لون الأزرار')}
@@ -3171,7 +3195,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 </div>
               </details>
               <details className="product-optional-section">
-                <summary>{t('صفحة المنتج ولغة الإعلان')}</summary>
+                <summary>{t('الرابط الأساسي للمنتج')}</summary>
                 <div className="product-editor-section-body">
                   {' '}
                   <label>
@@ -3194,104 +3218,106 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                           'يفتح الرابط الأساسي صفحة عادية بالصور والوصف والعروض والإضافة إلى السلة. بيانات التوصيل عند إتمام الطلب.',
                         )}
                   </p>
-                  <div className="product-presentation-links">
-                    <strong>{t('صفحتان للمنتج نفسه')}</strong>
-                    <p className="muted">
-                      {t(
-                        'المتجر يعرض الصفحة العادية. استخدم رابط اللاندينج باج للإعلانات؛ لا تحتاج إلى تكرار المنتج.',
-                      )}
-                    </p>
-                    {draft.slug && (
-                      <div className="toolbar">
-                        <a
-                          className="secondary"
-                          href={'/shop/' + draft.slug}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t('فتح الصفحة العادية ↗')}
-                        </a>
-                        <a
-                          className="secondary"
-                          href={'/offers/' + draft.slug}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t('فتح اللاندينج باج ↗')}
-                        </a>
-                      </div>
-                    )}
-                    <small>{t('الروابط تعمل بعد حفظ المنتج ونشره.')}</small>
-                    <label>
-                      {t('لغة اللاندينج باج')}
-                      <select
-                        aria-label={t('لغة اللاندينج باج')}
-                        value={landingLanguage}
-                        onChange={(event) =>
-                          patch('presentation', {
-                            ...draft.presentation,
-                            landingLanguage: languageOf(event.target.value),
-                          })
-                        }
-                      >
-                        {languages.map((language) => (
-                          <option key={language} value={language}>
-                            {languageNames[language]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <p className="muted">
-                      {t(
-                        'اختر اللغة المطابقة للصورة. الأزرار والاستمارة والسياسات بهذه اللغة، دون زر تبديل للزائر. يمكنك تعديل النصوص الخاصة بها أدناه.',
-                      )}
-                    </p>
-                  </div>
                 </div>
               </details>
             </div>
           </details>
         </section>
         <section className="panel product-form-editor-panel">
-          <details className="product-customization" open={draft.pageMode === 'landing'}>
-            <summary>{t('تخصيص صفحة الهبوط واستمارة الطلب')}</summary>
-            <h2>{draft.pageMode === 'landing' ? t('صفحة الهبوط') : t('تخصيص استمارة الطلب')}</h2>
+          <details
+            ref={landingEditor}
+            className="product-customization"
+            open={draft.pageMode === 'landing'}
+          >
+            <summary>{t('صفحة الهبوط')}</summary>
+            <h2>{t('صور صفحة الهبوط وأزرارها واستمارتها')}</h2>
             <p className="muted">
-              {draft.pageMode === 'landing'
-                ? t(
-                    'ارفع صورك وأضف أزرار الشراء والاستمارة. اسحب الوحدات أو استخدم الأسهم لترتيبها؛ الصور متصلة دون قص.',
-                  )
-                : t('يمكنك تعديل تسميات خانات الاستمارة ونص زر الطلب وألوانها.')}
+              {t(
+                'جهّز صفحة الإعلان للمنتج نفسه، حتى إذا كان الرابط الأساسي يعرض منتجًا عاديًا. ارفع الصور وأضف أزرار الشراء والاستمارة ورتّبها بالأسهم.',
+              )}
             </p>
-            <div className="toolbar">
-              {(['IMAGE', 'CTA', 'ORDER_FORM'] as const)
-                .filter((type) => draft.pageMode === 'landing' || type === 'ORDER_FORM')
-                .map((type) => (
-                  <button
-                    key={type}
-                    disabled={
-                      type === 'ORDER_FORM' &&
-                      draft.blocks.some((block) => block.type === 'ORDER_FORM')
-                    }
-                    onClick={() =>
-                      patch('blocks', [
-                        ...draft.blocks,
-                        {
-                          id: crypto.randomUUID(),
-                          type,
-                          order: draft.blocks.length,
-                          enabled: true,
-                          settings: {},
-                        },
-                      ])
-                    }
+            <div className="product-presentation-links">
+              <strong>{t('صفحتان للمنتج نفسه')}</strong>
+              <p className="muted">
+                {t(
+                  'المتجر يعرض الصفحة العادية. استخدم رابط اللاندينج باج للإعلانات؛ لا تحتاج إلى تكرار المنتج.',
+                )}
+              </p>
+              {draft.slug && (
+                <div className="toolbar">
+                  <a
+                    className="secondary"
+                    href={'/shop/' + draft.slug}
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    {type === 'IMAGE' ? t('صورة +') : type === 'CTA' ? t('زر +') : t('استمارة +')}
-                  </button>
-                ))}
+                    {t('فتح الصفحة العادية ↗')}
+                  </a>
+                  <a
+                    className="secondary"
+                    href={'/offers/' + draft.slug}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t('فتح اللاندينج باج ↗')}
+                  </a>
+                </div>
+              )}
+              <small>{t('الروابط تعمل بعد حفظ المنتج ونشره.')}</small>
+              <label>
+                {t('لغة اللاندينج باج')}
+                <select
+                  aria-label={t('لغة اللاندينج باج')}
+                  value={landingLanguage}
+                  onChange={(event) =>
+                    patch('presentation', {
+                      ...draft.presentation,
+                      landingLanguage: languageOf(event.target.value),
+                    })
+                  }
+                >
+                  {languages.map((language) => (
+                    <option key={language} value={language}>
+                      {languageNames[language]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="muted">
+                {t(
+                  'اختر اللغة المطابقة للصورة. الأزرار والاستمارة والسياسات بهذه اللغة، دون زر تبديل للزائر. يمكنك تعديل النصوص الخاصة بها أدناه.',
+                )}
+              </p>
             </div>
-            {draft.pageMode === 'landing' &&
-              draft.blocks.some((block) => block.type === 'CTA' && block.enabled) &&
+            <div className="toolbar landing-editor-actions">
+              {(['IMAGE', 'CTA', 'ORDER_FORM'] as const).map((type) => (
+                <button
+                  key={type}
+                  disabled={
+                    type === 'ORDER_FORM' &&
+                    draft.blocks.some((block) => block.type === 'ORDER_FORM')
+                  }
+                  onClick={() =>
+                    patch('blocks', [
+                      ...draft.blocks,
+                      {
+                        id: crypto.randomUUID(),
+                        type,
+                        order: draft.blocks.length,
+                        enabled: true,
+                        settings: {},
+                      },
+                    ])
+                  }
+                >
+                  {type === 'IMAGE' ? t('صورة +') : type === 'CTA' ? t('زر +') : t('استمارة +')}
+                </button>
+              ))}
+              <button type="button" className="secondary" onClick={() => previewDraft('landing')}>
+                {t('معاينة صفحة الهبوط')}
+              </button>
+            </div>
+            {draft.blocks.some((block) => block.type === 'CTA' && block.enabled) &&
               draft.blocks.some((block) => block.type === 'ORDER_FORM') &&
               !draft.blocks.some((block) => block.type === 'ORDER_FORM' && block.enabled) && (
                 <p className="notice">
@@ -3307,255 +3333,249 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     : source.settings,
               };
               return (
-                (draft.pageMode === 'landing' || b.type === 'ORDER_FORM') && (
-                  <article
-                    className="editor-block"
-                    draggable={draft.pageMode === 'landing'}
-                    key={b.id}
-                    onDragStart={() => setDrag(b.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => reorder(drag, b.id)}
-                  >
-                    <div className="toolbar">
-                      <b>
-                        ⋮⋮{' '}
-                        {b.type === 'IMAGE'
-                          ? t('صورة')
-                          : b.type === 'CTA'
-                            ? t('زر شراء')
-                            : t('استمارة')}
-                      </b>
-                      {draft.pageMode === 'landing' && (
-                        <>
-                          <Check
-                            label={t('ظاهر')}
-                            value={b.enabled}
-                            onChange={(v) => blockPatch(b.id, { enabled: v })}
-                          />
-                          <button onClick={() => i > 0 && reorder(b.id, draft.blocks[i - 1].id)}>
-                            ↑
-                          </button>
-                          <button
-                            onClick={() =>
-                              i < draft.blocks.length - 1 && reorder(b.id, draft.blocks[i + 1].id)
-                            }
-                          >
-                            ↓
-                          </button>
-                        </>
-                      )}
+                <article
+                  className="editor-block"
+                  draggable
+                  key={b.id}
+                  onDragStart={() => setDrag(b.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => reorder(drag, b.id)}
+                >
+                  <div className="toolbar">
+                    <b>
+                      ⋮⋮{' '}
+                      {b.type === 'IMAGE'
+                        ? t('صورة')
+                        : b.type === 'CTA'
+                          ? t('زر شراء')
+                          : t('استمارة')}
+                    </b>
+                    <>
+                      <Check
+                        label={t('ظاهر')}
+                        value={b.enabled}
+                        onChange={(v) => blockPatch(b.id, { enabled: v })}
+                      />
+                      <button onClick={() => i > 0 && reorder(b.id, draft.blocks[i - 1].id)}>
+                        ↑
+                      </button>
                       <button
                         onClick={() =>
-                          patch(
-                            'blocks',
-                            draft.blocks
-                              .filter((x) => x.id !== b.id)
-                              .map((b, i) => ({ ...b, order: i })),
-                          )
+                          i < draft.blocks.length - 1 && reorder(b.id, draft.blocks[i + 1].id)
                         }
                       >
-                        {t('حذف')}
+                        ↓
                       </button>
-                    </div>
-                    {b.type === 'IMAGE' ? (
-                      <>
-                        {b.settings.image && (
-                          <a
-                            href={b.settings.image}
-                            target="_blank"
-                            rel="noreferrer"
-                            title={t('عرض الصورة بحجمها الكامل')}
-                          >
-                            <img src={b.settings.image} alt={t('معاينة')} />
-                          </a>
-                        )}
-                        <Upload
-                          action={action}
-                          purpose="landing"
-                          onUpload={(r) =>
-                            blockPatch(b.id, {
-                              settings: {
-                                ...b.settings,
-                                image: r.url,
-                                width: r.width,
-                                height: r.height,
-                              },
-                            })
-                          }
+                    </>
+                    <button
+                      onClick={() =>
+                        patch(
+                          'blocks',
+                          draft.blocks
+                            .filter((x) => x.id !== b.id)
+                            .map((b, i) => ({ ...b, order: i })),
+                        )
+                      }
+                    >
+                      {t('حذف')}
+                    </button>
+                  </div>
+                  {b.type === 'IMAGE' ? (
+                    <>
+                      {b.settings.image && (
+                        <a
+                          href={b.settings.image}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={t('عرض الصورة بحجمها الكامل')}
+                        >
+                          <img src={b.settings.image} alt={t('معاينة')} />
+                        </a>
+                      )}
+                      <Upload
+                        action={action}
+                        purpose="landing"
+                        onUpload={(r) =>
+                          blockPatch(b.id, {
+                            settings: {
+                              ...b.settings,
+                              image: r.url,
+                              width: r.width,
+                              height: r.height,
+                            },
+                          })
+                        }
+                      />
+                      <Field
+                        path={`blocks.${i}.settings.image`}
+                        label={t('رابط الصورة')}
+                        value={b.settings.image || ''}
+                        onChange={(v) => blockSettings(b.id, 'image', v)}
+                      />
+                      <Field
+                        path={`blocks.${i}.settings.alt`}
+                        label={t('وصف الصورة')}
+                        value={b.settings.alt || ''}
+                        onChange={(v) => blockSettings(b.id, 'alt', v)}
+                      />
+                      <div className="settings-grid">
+                        <Field
+                          path={`blocks.${i}.settings.width`}
+                          label={t('عرض الصورة الأصلي')}
+                          type="number"
+                          value={b.settings.width || 1000}
+                          onChange={(v) => blockSettings(b.id, 'width', Number(v))}
                         />
                         <Field
-                          path={`blocks.${i}.settings.image`}
-                          label={t('رابط الصورة')}
-                          value={b.settings.image || ''}
-                          onChange={(v) => blockSettings(b.id, 'image', v)}
+                          path={`blocks.${i}.settings.height`}
+                          label={t('ارتفاع الصورة الأصلي')}
+                          type="number"
+                          value={b.settings.height || 1000}
+                          onChange={(v) => blockSettings(b.id, 'height', Number(v))}
                         />
-                        <Field
-                          path={`blocks.${i}.settings.alt`}
-                          label={t('وصف الصورة')}
-                          value={b.settings.alt || ''}
-                          onChange={(v) => blockSettings(b.id, 'alt', v)}
-                        />
-                        <div className="settings-grid">
-                          <Field
-                            path={`blocks.${i}.settings.width`}
-                            label={t('عرض الصورة الأصلي')}
-                            type="number"
-                            value={b.settings.width || 1000}
-                            onChange={(v) => blockSettings(b.id, 'width', Number(v))}
-                          />
-                          <Field
-                            path={`blocks.${i}.settings.height`}
-                            label={t('ارتفاع الصورة الأصلي')}
-                            type="number"
-                            value={b.settings.height || 1000}
-                            onChange={(v) => blockSettings(b.id, 'height', Number(v))}
-                          />
-                        </div>
-                      </>
-                    ) : b.type === 'CTA' ? (
-                      <>
-                        <p className="muted">
-                          {t('زر الشراء ينقل الزبون مباشرة إلى استمارة الطلب في هذه الصفحة.')}
-                        </p>
-                        <Field
-                          path={`blocks.${i}.settings.text`}
-                          label={t('نص الزر')}
-                          value={localizedLandingButton(
-                            landingUISettings,
-                            b.settings.text as string | undefined,
-                          )}
-                          onChange={(v) => blockSettings(b.id, 'text', v)}
-                        />
-                        <div className="settings-grid">
-                          <Field
-                            path={`blocks.${i}.settings.color`}
-                            label={t('لون الزر')}
-                            type="color"
-                            value={b.settings.color || draft.color}
-                            onChange={(v) => blockSettings(b.id, 'color', v)}
-                          />
-                          <Field
-                            path={`blocks.${i}.settings.textColor`}
-                            label={t('لون النص')}
-                            type="color"
-                            value={b.settings.textColor || '#ffffff'}
-                            onChange={(v) => blockSettings(b.id, 'textColor', v)}
-                          />
-                          <Field
-                            path={`blocks.${i}.settings.size`}
-                            label={t('حجم النص')}
-                            type="number"
-                            value={b.settings.size || 18}
-                            onChange={(v) => blockSettings(b.id, 'size', Number(v))}
-                          />
-                          <Field
-                            path={`blocks.${i}.settings.margin`}
-                            label={t('المسافة حول الزر')}
-                            type="number"
-                            value={b.settings.margin ?? 24}
-                            onChange={(v) => blockSettings(b.id, 'margin', Number(v))}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div>
-                        <p className="muted">
-                          {t(
-                            'الاسم والهاتف والمدينة والعنوان مطلوبة للتوصيل. يمكنك تعديل تسمياتها والنص داخل الخانات وإظهار الملاحظات أو إخفائها.',
-                          )}
-                        </p>
-                        <Field
-                          path={`blocks.${i}.settings.formTitle`}
-                          label={t('عنوان الاستمارة')}
-                          value={
-                            b.settings.formTitle ??
-                            (draft.offers.length ? productFormDefaults.formTitle : t('أكمل طلبك'))
-                          }
-                          onChange={(v) => blockSettings(b.id, 'formTitle', v)}
-                        />
-                        <Field
-                          path={`blocks.${i}.settings.formSubtitle`}
-                          label={t('وصف أعلى الاستمارة')}
-                          value={b.settings.formSubtitle ?? productFormDefaults.formSubtitle}
-                          onChange={(v) => blockSettings(b.id, 'formSubtitle', v)}
-                        />
-                        <Field
-                          path={`blocks.${i}.settings.submitText`}
-                          label={t('نص زر تأكيد الطلب')}
-                          value={b.settings.submitText ?? productFormDefaults.submitText}
-                          onChange={(v) => blockSettings(b.id, 'submitText', v)}
-                        />
-                        {(['name', 'phone', 'city', 'address'] as const).map((key) => (
-                          <div className="settings-grid" key={key}>
-                            <Field
-                              path={`blocks.${i}.settings.${key}Label`}
-                              label={
-                                t('تسمية خانة ') +
-                                {
-                                  name: t('الاسم'),
-                                  phone: t('الهاتف'),
-                                  city: t('المدينة'),
-                                  address: t('العنوان'),
-                                }[key]
-                              }
-                              value={
-                                (b.settings[(key + 'Label') as keyof FormContent] as string) ??
-                                (productFormDefaults[
-                                  (key + 'Label') as keyof typeof productFormDefaults
-                                ] as string)
-                              }
-                              onChange={(v) => blockSettings(b.id, key + 'Label', v)}
-                            />
-                            <Field
-                              path={`blocks.${i}.settings.${key}Placeholder`}
-                              label={
-                                t('النص داخل خانة ') +
-                                {
-                                  name: t('الاسم'),
-                                  phone: t('الهاتف'),
-                                  city: t('المدينة'),
-                                  address: t('العنوان'),
-                                }[key]
-                              }
-                              value={
-                                (b.settings[
-                                  (key + 'Placeholder') as keyof FormContent
-                                ] as string) ??
-                                (productFormDefaults[
-                                  (key + 'Placeholder') as keyof typeof productFormDefaults
-                                ] as string)
-                              }
-                              onChange={(v) => blockSettings(b.id, key + 'Placeholder', v)}
-                            />
-                          </div>
-                        ))}
-                        <Check
-                          label={t('إظهار خانة ملاحظات التوصيل')}
-                          value={b.settings.showNotes ?? true}
-                          onChange={(v) => blockSettings(b.id, 'showNotes', v)}
-                        />
-                        {(b.settings.showNotes ?? true) && (
-                          <>
-                            <Field
-                              path={`blocks.${i}.settings.notesLabel`}
-                              label={t('تسمية خانة الملاحظات')}
-                              value={b.settings.notesLabel ?? productFormDefaults.notesLabel}
-                              onChange={(v) => blockSettings(b.id, 'notesLabel', v)}
-                            />
-                            <Field
-                              path={`blocks.${i}.settings.notesPlaceholder`}
-                              label={t('النص داخل خانة الملاحظات')}
-                              value={
-                                b.settings.notesPlaceholder ?? productFormDefaults.notesPlaceholder
-                              }
-                              onChange={(v) => blockSettings(b.id, 'notesPlaceholder', v)}
-                            />
-                          </>
-                        )}
                       </div>
-                    )}
-                  </article>
-                )
+                    </>
+                  ) : b.type === 'CTA' ? (
+                    <>
+                      <p className="muted">
+                        {t('زر الشراء ينقل الزبون مباشرة إلى استمارة الطلب في هذه الصفحة.')}
+                      </p>
+                      <Field
+                        path={`blocks.${i}.settings.text`}
+                        label={t('نص الزر')}
+                        value={localizedLandingButton(
+                          landingUISettings,
+                          b.settings.text as string | undefined,
+                        )}
+                        onChange={(v) => blockSettings(b.id, 'text', v)}
+                      />
+                      <div className="settings-grid">
+                        <Field
+                          path={`blocks.${i}.settings.color`}
+                          label={t('لون الزر')}
+                          type="color"
+                          value={b.settings.color || draft.color}
+                          onChange={(v) => blockSettings(b.id, 'color', v)}
+                        />
+                        <Field
+                          path={`blocks.${i}.settings.textColor`}
+                          label={t('لون النص')}
+                          type="color"
+                          value={b.settings.textColor || '#ffffff'}
+                          onChange={(v) => blockSettings(b.id, 'textColor', v)}
+                        />
+                        <Field
+                          path={`blocks.${i}.settings.size`}
+                          label={t('حجم النص')}
+                          type="number"
+                          value={b.settings.size || 18}
+                          onChange={(v) => blockSettings(b.id, 'size', Number(v))}
+                        />
+                        <Field
+                          path={`blocks.${i}.settings.margin`}
+                          label={t('المسافة حول الزر')}
+                          type="number"
+                          value={b.settings.margin ?? 24}
+                          onChange={(v) => blockSettings(b.id, 'margin', Number(v))}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="muted">
+                        {t(
+                          'الاسم والهاتف والمدينة والعنوان مطلوبة للتوصيل. يمكنك تعديل تسمياتها والنص داخل الخانات وإظهار الملاحظات أو إخفائها.',
+                        )}
+                      </p>
+                      <Field
+                        path={`blocks.${i}.settings.formTitle`}
+                        label={t('عنوان الاستمارة')}
+                        value={
+                          b.settings.formTitle ??
+                          (draft.offers.length ? productFormDefaults.formTitle : t('أكمل طلبك'))
+                        }
+                        onChange={(v) => blockSettings(b.id, 'formTitle', v)}
+                      />
+                      <Field
+                        path={`blocks.${i}.settings.formSubtitle`}
+                        label={t('وصف أعلى الاستمارة')}
+                        value={b.settings.formSubtitle ?? productFormDefaults.formSubtitle}
+                        onChange={(v) => blockSettings(b.id, 'formSubtitle', v)}
+                      />
+                      <Field
+                        path={`blocks.${i}.settings.submitText`}
+                        label={t('نص زر تأكيد الطلب')}
+                        value={b.settings.submitText ?? productFormDefaults.submitText}
+                        onChange={(v) => blockSettings(b.id, 'submitText', v)}
+                      />
+                      {(['name', 'phone', 'city', 'address'] as const).map((key) => (
+                        <div className="settings-grid" key={key}>
+                          <Field
+                            path={`blocks.${i}.settings.${key}Label`}
+                            label={
+                              t('تسمية خانة ') +
+                              {
+                                name: t('الاسم'),
+                                phone: t('الهاتف'),
+                                city: t('المدينة'),
+                                address: t('العنوان'),
+                              }[key]
+                            }
+                            value={
+                              (b.settings[(key + 'Label') as keyof FormContent] as string) ??
+                              (productFormDefaults[
+                                (key + 'Label') as keyof typeof productFormDefaults
+                              ] as string)
+                            }
+                            onChange={(v) => blockSettings(b.id, key + 'Label', v)}
+                          />
+                          <Field
+                            path={`blocks.${i}.settings.${key}Placeholder`}
+                            label={
+                              t('النص داخل خانة ') +
+                              {
+                                name: t('الاسم'),
+                                phone: t('الهاتف'),
+                                city: t('المدينة'),
+                                address: t('العنوان'),
+                              }[key]
+                            }
+                            value={
+                              (b.settings[(key + 'Placeholder') as keyof FormContent] as string) ??
+                              (productFormDefaults[
+                                (key + 'Placeholder') as keyof typeof productFormDefaults
+                              ] as string)
+                            }
+                            onChange={(v) => blockSettings(b.id, key + 'Placeholder', v)}
+                          />
+                        </div>
+                      ))}
+                      <Check
+                        label={t('إظهار خانة ملاحظات التوصيل')}
+                        value={b.settings.showNotes ?? true}
+                        onChange={(v) => blockSettings(b.id, 'showNotes', v)}
+                      />
+                      {(b.settings.showNotes ?? true) && (
+                        <>
+                          <Field
+                            path={`blocks.${i}.settings.notesLabel`}
+                            label={t('تسمية خانة الملاحظات')}
+                            value={b.settings.notesLabel ?? productFormDefaults.notesLabel}
+                            onChange={(v) => blockSettings(b.id, 'notesLabel', v)}
+                          />
+                          <Field
+                            path={`blocks.${i}.settings.notesPlaceholder`}
+                            label={t('النص داخل خانة الملاحظات')}
+                            value={
+                              b.settings.notesPlaceholder ?? productFormDefaults.notesPlaceholder
+                            }
+                            onChange={(v) => blockSettings(b.id, 'notesPlaceholder', v)}
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
+                </article>
               );
             })}
           </details>

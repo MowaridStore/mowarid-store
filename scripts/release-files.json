@@ -166,5 +166,7 @@
   "src/shared/policies.ts",
   "src/server/policy-content.ts",
   "tests/policies.test.ts",
-  "tests/e2e/policies.spec.ts"
+  "tests/e2e/policies.spec.ts",
+  "tests/e2e/landing-editor.spec.ts",
+  "tests/bundle-profit.test.ts"
 ]
