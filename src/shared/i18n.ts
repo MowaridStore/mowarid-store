@@ -81,6 +81,7 @@ export function storefrontSettings(s: Settings): Settings {
       ...content.home,
       showSearch: s.home.showSearch !== false,
       showPriceSort: s.home.showPriceSort !== false,
+      showNavigation: s.home.showNavigation !== false,
       licenseCard: {
         ...localized.home.licenseCard,
         ...content.home?.licenseCard,

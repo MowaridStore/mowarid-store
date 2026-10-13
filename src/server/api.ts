@@ -347,7 +347,7 @@ api.post('/auth/login', async (c) => {
     .parse(await c.req.json());
   requireOwnerAuth(c.env);
   await turnstile(c.env, b.turnstileToken, 'login', {
-    origin: c.env.APP_ORIGIN || new URL(c.req.url).origin,
+    origin: new URL(c.req.url).origin,
   });
   const a = await c.env.DB.prepare('SELECT * FROM admins WHERE email=?')
     .bind(b.email.toLowerCase())
@@ -388,7 +388,7 @@ api.post('/auth/recover', async (c) => {
     })
     .parse(await c.req.json());
   await turnstile(c.env, b.turnstileToken, 'recover', {
-    origin: c.env.APP_ORIGIN || new URL(c.req.url).origin,
+    origin: new URL(c.req.url).origin,
   });
   const a = await c.env.DB.prepare('SELECT id,recovery FROM admins WHERE email=?')
       .bind(b.email.toLowerCase())
@@ -587,7 +587,7 @@ api.post('/orders', async (c) => {
   }
   customer.city = canonicalCity(customer.city, await cities(c.env.DB));
   await turnstile(c.env, b.turnstileToken, 'order', {
-    origin: c.env.APP_ORIGIN || new URL(c.req.url).origin,
+    origin: new URL(c.req.url).origin,
   });
   const q = await makeQuote(c.env, b.cart, customer.city, b.checkoutMode);
   if (q.fingerprint !== b.fingerprint)
@@ -1066,6 +1066,10 @@ api.put('/admin/settings', async (c) => {
       ? old.theme
       : s.landingTheme);
   if (!Object.hasOwn(body, 'productInfo')) s.productInfo = old.productInfo;
+  if (!Object.hasOwn(body, 'branding')) s.branding = old.branding;
+  if (!Object.hasOwn(body, 'typography')) s.typography = old.typography;
+  if (!body.home || !Object.hasOwn(body.home, 'showNavigation'))
+    s.home.showNavigation = old.home.showNavigation;
   if (!body.home || !Object.hasOwn(body.home, 'showSearch'))
     s.home.showSearch = old.home.showSearch;
   if (!body.home || !Object.hasOwn(body.home, 'showPriceSort'))

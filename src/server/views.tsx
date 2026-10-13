@@ -2,6 +2,7 @@
 import { productSort, sortedProducts } from '../shared/product-sort';
 import { localizedCategory } from '../shared/i18n';
 import { productDeliveryText } from '../shared/product-info';
+import { typographyStyle } from '../shared/typography';
 import { pricedProduct, promotionClock, promotionRemaining, tailPricing } from '../shared/commerce';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
@@ -203,9 +204,13 @@ export function Layout({
           'storefront' +
           (landing ? ' focused-landing' : '') +
           (product && !landing ? ' has-product-dock' : '') +
-          (checkout ? ' checkout-store' : '')
+          (checkout ? ' checkout-store' : '') +
+          (s.home.showNavigation === false ? ' no-header-navigation' : '')
         }
         style={{
+          ...typographyStyle(s),
+          '--logo-width': (s.branding?.logoWidth || 112) + 'px',
+          '--logo-zoom': String(s.branding?.logoZoom || 1),
           '--green': s.theme.primary,
           '--page': s.theme.background,
           '--surface': s.theme.surface,
@@ -228,7 +233,7 @@ export function Layout({
           <>
             {!checkout && s.announcement && <div class="announcement">{s.announcement}</div>}
             <header class="store-header">
-              {!checkout && (
+              {!checkout && s.home.showNavigation !== false && (
                 <details class="mobile-menu">
                   <summary aria-label={t('فتح قائمة المتجر')}>
                     <Icon name="menu" />
@@ -243,22 +248,29 @@ export function Layout({
                   </nav>
                 </details>
               )}
-              <a href="/" class="brand">
+              <a
+                href="/"
+                class={'brand' + (s.logo && s.branding?.showName === false ? ' logo-wordmark' : '')}
+              >
                 {s.logo ? (
-                  <img src={s.logo} alt={s.brand} />
+                  <span class="brand-logo">
+                    <img src={s.logo} alt={s.brand} />
+                  </span>
                 ) : (
                   <span class="brand-mark">{s.brand.slice(0, 1)}</span>
                 )}
-                <span>
-                  {s.brand}
+                <span class="brand-copy">
+                  {(!s.logo || s.branding?.showName !== false) && <strong>{s.brand}</strong>}
                   <small>{s.home.tagline}</small>
                 </span>
               </a>
-              <nav class="desktop-nav">
-                <a href="/#products">{t('تسوق المنتجات')}</a>
-                {s.home.showPromise && <a href="/#promise">{t('لماذا نحن؟')}</a>}
-                {policyVisible(s, 'contact') && <a href="/policies/contact">{t('تواصل معنا')}</a>}
-              </nav>
+              {s.home.showNavigation !== false && (
+                <nav class="desktop-nav">
+                  <a href="/#products">{t('تسوق المنتجات')}</a>
+                  {s.home.showPromise && <a href="/#promise">{t('لماذا نحن؟')}</a>}
+                  {policyVisible(s, 'contact') && <a href="/policies/contact">{t('تواصل معنا')}</a>}
+                </nav>
+              )}
               <div class="header-actions">
                 {!preview && <StoreLanguageSwitcher s={s} />}
                 <button class="cart-button" data-open-cart aria-label={t('فتح سلة المشتريات')}>

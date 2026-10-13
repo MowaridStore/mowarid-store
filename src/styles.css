@@ -6446,3 +6446,170 @@ bdi[dir='ltr'] {
 .storefront:not(.focused-landing) .primary:hover {
   box-shadow: 0 0 0 2px var(--accent);
 }
+/* Configured storefront reading sizes never override a landing page's own design. */
+.storefront:not(.focused-landing) {
+  --reading-size: var(--store-size, 16px);
+  font-family: var(--store-font, 'IBM Plex Sans Arabic', sans-serif);
+  font-size: var(--reading-size);
+  font-weight: var(--store-weight, 500);
+}
+.storefront:not(.focused-landing) .brand-logo {
+  display: block;
+  width: var(--logo-width, 112px);
+  max-width: 100%;
+  height: 56px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.storefront:not(.focused-landing) .brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(var(--logo-zoom, 1));
+  transform-origin: center;
+}
+.storefront:not(.focused-landing) .brand-copy strong {
+  font-size: inherit;
+  font-weight: 700;
+}
+.storefront:not(.focused-landing) .brand.logo-wordmark {
+  flex-direction: column;
+  gap: 4px;
+}
+.storefront:not(.focused-landing) .brand.logo-wordmark .brand-copy {
+  max-width: 220px;
+  white-space: normal;
+  text-align: center;
+}
+.storefront:not(.focused-landing) .brand.logo-wordmark .brand-copy small {
+  white-space: normal;
+  line-height: 1.5;
+  margin: 0;
+}
+.storefront:not(.focused-landing) #checkout-form label,
+.storefront:not(.focused-landing) #checkout-form input:not([type='radio']):not([type='checkbox']),
+.storefront:not(.focused-landing) #checkout-form select,
+.storefront:not(.focused-landing) #checkout-form textarea,
+.storefront:not(.focused-landing) .checkout-method small,
+.storefront:not(.focused-landing) .checkout-method b,
+.storefront:not(.focused-landing) .cart-line-info small,
+.storefront:not(.focused-landing) .cart-line-info b,
+.storefront:not(.focused-landing) .cart-bundle-selector,
+.storefront:not(.focused-landing) .cart-bundle-selector select,
+.storefront:not(.focused-landing) .summary-row,
+.storefront:not(.focused-landing) .summary-trust,
+.storefront:not(.focused-landing) #checkout-form > p,
+.storefront:not(.focused-landing) .checkout-summary-content > p,
+.storefront:not(.focused-landing) .checkout-summary-details > summary small,
+.storefront:not(.focused-landing) .hero-copy p,
+.storefront:not(.focused-landing) .hero-proof,
+.storefront:not(.focused-landing) .product-delivery small,
+.storefront:not(.focused-landing) .product-description-panel p,
+.storefront:not(.focused-landing) .product-offers .offer-card small,
+.storefront:not(.focused-landing) .benefits-strip > span,
+.storefront:not(.focused-landing) .store-footer p,
+.storefront:not(.focused-landing) .store-footer a,
+.storefront:not(.focused-landing) .license-card p,
+.storefront:not(.focused-landing) .promise-cards p {
+  font-size: var(--reading-size);
+  line-height: 1.8;
+  font-weight: var(--store-weight, 500);
+}
+.storefront:not(.focused-landing) #checkout-form input::placeholder,
+.storefront:not(.focused-landing) #checkout-form textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+  font-weight: 400;
+}
+.storefront:not(.focused-landing) .summary-trust {
+  color: var(--muted);
+}
+.storefront:not(.focused-landing) .cod-badge,
+.storefront:not(.focused-landing) .eyebrow,
+.storefront:not(.focused-landing) .supplier-notice,
+.storefront:not(.focused-landing) .product-count,
+.storefront:not(.focused-landing) .product-price-line > span,
+.storefront:not(.focused-landing) .desktop-nav a,
+.storefront:not(.focused-landing) .card-add,
+.storefront:not(.focused-landing) .price-sort,
+.storefront:not(.focused-landing) .price-sort select,
+.storefront:not(.focused-landing) .submit-order {
+  font-size: var(--reading-size);
+}
+.storefront:not(.focused-landing) .summary-row.total {
+  font-size: calc(var(--reading-size) + 2px);
+  font-weight: 700;
+}
+.storefront:not(.focused-landing) .cart-line-info {
+  min-width: 0;
+}
+.storefront:not(.focused-landing) #checkout-form input,
+.storefront:not(.focused-landing) #checkout-form select,
+.storefront:not(.focused-landing) #checkout-form textarea {
+  min-width: 0;
+}
+.appearance-controls {
+  margin-block: 8px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.appearance-controls > summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+.appearance-controls .form-grid {
+  margin-top: 14px;
+}
+@media (max-width: 700px) {
+  .storefront:not(.focused-landing) {
+    --reading-size: var(--store-mobile-size, 17px);
+  }
+  .storefront:not(.focused-landing) .brand-logo {
+    width: min(var(--logo-width, 112px), 160px);
+    height: 48px;
+  }
+  .storefront:not(.focused-landing) .brand.logo-wordmark .brand-copy {
+    max-width: 180px;
+  }
+  .storefront.no-header-navigation .store-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'brand cart' 'search search';
+  }
+  .storefront.no-header-navigation .brand {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+  .storefront:not(.focused-landing) .shop-hero:not(.custom-hero) {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .storefront:not(.focused-landing) .shop-hero .hero-collection {
+    grid-row: 2;
+    height: 220px;
+    width: 100%;
+    max-width: 340px;
+    justify-self: center;
+  }
+  .storefront:not(.focused-landing) .hero .primary {
+    font-size: var(--reading-size);
+    min-height: 48px;
+  }
+  .storefront:not(.focused-landing) .hero-collection-note {
+    font-size: 14px;
+  }
+  .storefront:not(.focused-landing) .product-card h3 {
+    font-size: 16px;
+  }
+  .storefront:not(.focused-landing) .product-bottom strong {
+    font-size: 19px;
+  }
+  .storefront:not(.focused-landing) .product-badge,
+  .storefront:not(.focused-landing) .mobile-store-nav {
+    font-size: 13px;
+  }
+}
+.storefront:not(.focused-landing) .brand-copy small {
+  font-size: calc(var(--reading-size) - 1px);
+  font-weight: var(--store-weight, 500);
+}

@@ -689,6 +689,8 @@ function paintQuote(subtotal: number, shipping: number) {
 async function updateQuote(refreshRevision = true) {
   if (!$('#checkout-form')) return;
   const sequence = ++quoteSerial;
+  const errorBox = $('#checkout-error');
+  errorBox?.querySelectorAll('button').forEach((button) => (button.disabled = true));
   quote = null;
   const lines = checkoutLines();
   if (!lines.length) {
@@ -727,13 +729,15 @@ async function updateQuote(refreshRevision = true) {
     $('#checkout-error')!.textContent = '';
   } catch (e) {
     if (sequence !== quoteSerial) return;
-    if (
-      (e as any).code === 'bundle_quantity_unavailable' ||
-      (e as any).code === 'cart_changed' ||
-      (e as any).code === 'offer_changed' ||
-      (e as any).code === 'invalid_checkout_offer' ||
-      (e as any).code === 'unavailable_product'
-    ) {
+    const catalogChanged = [
+      'bundle_quantity_unavailable',
+      'cart_changed',
+      'offer_changed',
+      'invalid_checkout_offer',
+      'unavailable_product',
+    ].includes((e as { code?: string }).code || '');
+    if (!catalogChanged) reviewProducts = null;
+    if (catalogChanged) {
       try {
         const ids = [...new Set(checkoutLines().map((line) => line.productId))];
         const updated = await request<PublicProduct[]>(
@@ -771,19 +775,32 @@ async function updateQuote(refreshRevision = true) {
       } catch {}
     }
     if (sequence !== quoteSerial) return;
-    $('#checkout-error')!.textContent = t((e as Error).message);
-    const changed = directCheckout
-      ? true
-      : cart.some((l) => {
-          const p = (reviewProducts || config.products).find((p) => p.id === l.productId);
-          return (
-            !p ||
-            (p.bundleMode && !bundleChoices(p).includes(l.quantity)) ||
-            (!!l.offerId && !cartOffers(p).some((offer) => offer.id === l.offerId)) ||
-            (cartOffers(p).find((o) => o.id === l.offerId)?.revision ?? p.revision) !== l.revision
-          );
-        });
-    if (changed) {
+    $('#checkout-error')!.textContent =
+      e instanceof TypeError ? t('تعذر الاتصال. حاول مجددًا.') : t((e as Error).message);
+    const changed =
+      catalogChanged &&
+      (directCheckout
+        ? true
+        : cart.some((l) => {
+            const p = (reviewProducts || config.products).find((p) => p.id === l.productId);
+            return (
+              !p ||
+              (p.bundleMode && !bundleChoices(p).includes(l.quantity)) ||
+              (!!l.offerId && !cartOffers(p).some((offer) => offer.id === l.offerId)) ||
+              (cartOffers(p).find((o) => o.id === l.offerId)?.revision ?? p.revision) !== l.revision
+            );
+          }));
+    if (!catalogChanged) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'secondary';
+      retry.textContent = t('إعادة حساب الإجمالي');
+      retry.onclick = async () => {
+        retry.disabled = true;
+        await updateQuote();
+      };
+      $('#checkout-error')!.append(retry);
+    } else if (changed) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'secondary';

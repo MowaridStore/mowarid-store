@@ -118,6 +118,9 @@ function Field({
   autoComplete,
   required = false,
   minLength,
+  min,
+  max,
+  step,
   path,
   secret = false,
   dir,
@@ -130,6 +133,9 @@ function Field({
   autoComplete?: string;
   required?: boolean;
   minLength?: number;
+  min?: number;
+  max?: number;
+  step?: number;
   path?: string;
   secret?: boolean;
   dir?: 'rtl' | 'ltr' | 'auto';
@@ -189,10 +195,12 @@ function Field({
           id={id}
           dir={dir || (['tel', 'email', 'url', 'number'].includes(type) ? 'ltr' : 'auto')}
           type={type}
+          min={min}
+          max={max}
           autoComplete={autoComplete}
           required={required}
           minLength={minLength}
-          step={type === 'number' ? 'any' : undefined}
+          step={step ?? (type === 'number' ? 'any' : undefined)}
           value={value}
           aria-invalid={!!error}
           aria-describedby={error ? id + '-error' : undefined}
@@ -1819,10 +1827,13 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                       {
                         ...s,
                         theme: value.theme,
+                        branding: value.branding,
+                        typography: value.typography,
                         home: {
                           ...s.home,
                           showSearch: value.home.showSearch,
                           showPriceSort: value.home.showPriceSort,
+                          showNavigation: value.home.showNavigation,
                           licenseCard: {
                             ...s.home.licenseCard,
                             enabled: value.home.licenseCard.enabled,
@@ -1903,6 +1914,108 @@ function AppearanceSettings({
   );
   return (
     <>
+      <details className="wide appearance-controls">
+        <summary>{t('عرض الشعار')}</summary>
+        <div className="form-grid">
+          <Field
+            label={t('عرض الشعار (بالبكسل)')}
+            type="number"
+            min={64}
+            max={220}
+            step={1}
+            value={s.branding.logoWidth}
+            onChange={(value) =>
+              setS({ ...s, branding: { ...s.branding, logoWidth: Number(value) } })
+            }
+          />
+          <Field
+            label={t('تكبير الشعار داخل الإطار')}
+            type="number"
+            min={1}
+            max={6}
+            step={0.1}
+            value={s.branding.logoZoom}
+            onChange={(value) =>
+              setS({ ...s, branding: { ...s.branding, logoZoom: Number(value) } })
+            }
+          />
+          <Check
+            label={t('إظهار اسم المتجر بجانب الشعار')}
+            value={s.branding.showName}
+            onChange={(showName) => setS({ ...s, branding: { ...s.branding, showName } })}
+          />
+          <p className="muted">
+            {t('ارفع التكبير إذا كانت الصورة تحتوي على هوامش فارغة. لا يغيّر ذلك ملف الشعار.')}
+          </p>
+        </div>
+      </details>
+      <details className="wide appearance-controls">
+        <summary>{t('الخط وحجم الكتابة')}</summary>
+        <div className="form-grid">
+          <label>
+            {t('خط المتجر')}
+            <select
+              aria-label={t('خط المتجر')}
+              value={s.typography.family}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  typography: {
+                    ...s.typography,
+                    family: e.target.value as Settings['typography']['family'],
+                  },
+                })
+              }
+            >
+              <option value="plex">IBM Plex Sans Arabic</option>
+              <option value="system">{t('خط الجهاز')}</option>
+            </select>
+          </label>
+          <Field
+            label={t('حجم النص على الحاسوب')}
+            type="number"
+            min={16}
+            max={20}
+            step={1}
+            value={s.typography.desktopSize}
+            onChange={(v) =>
+              setS({ ...s, typography: { ...s.typography, desktopSize: Number(v) } })
+            }
+          />
+          <Field
+            label={t('حجم النص على الهاتف')}
+            type="number"
+            min={16}
+            max={20}
+            step={1}
+            value={s.typography.mobileSize}
+            onChange={(v) => setS({ ...s, typography: { ...s.typography, mobileSize: Number(v) } })}
+          />
+          <label>
+            {t('سُمك النص')}
+            <select
+              aria-label={t('سُمك النص')}
+              value={s.typography.weight}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  typography: {
+                    ...s.typography,
+                    weight: Number(e.target.value) as 400 | 500 | 600,
+                  },
+                })
+              }
+            >
+              <option value="400">{t('عادي')}</option>
+              <option value="500">{t('متوسط')}</option>
+              <option value="600">{t('واضح')}</option>
+            </select>
+          </label>
+          <p className="muted">
+            {t('اختر حجمًا من 16 إلى 20. يشمل نصوص المتجر والمنتجات وصفحة الطلب.')}
+          </p>
+        </div>
+      </details>
       <h2 className="wide">{t('ألوان المتجر')}</h2>
       {(
         Object.entries({
@@ -1924,6 +2037,11 @@ function AppearanceSettings({
         />
       ))}
       <h2 className="wide">{t('أعلى الصفحة الرئيسية')}</h2>
+      <Check
+        label={t('إظهار القائمة العلوية للمتجر')}
+        value={s.home.showNavigation !== false}
+        onChange={(value) => home('showNavigation', value)}
+      />
       <Check
         label={t('إظهار مربع البحث في المتجر')}
         value={s.home.showSearch !== false}

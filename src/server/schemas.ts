@@ -349,6 +349,23 @@ const baseSettingsSchema = z
       .default(''),
     attributionDays: z.literal(30),
     theme: themeSchema.default(defaults.theme),
+    branding: z
+      .object({
+        logoWidth: z.number().int().min(64).max(220),
+        logoZoom: z.number().min(1).max(6),
+        showName: z.boolean(),
+      })
+      .strict()
+      .default(defaults.branding),
+    typography: z
+      .object({
+        family: z.enum(['plex', 'system']),
+        desktopSize: z.number().int().min(16).max(20),
+        mobileSize: z.number().int().min(16).max(20),
+        weight: z.union([z.literal(400), z.literal(500), z.literal(600)]),
+      })
+      .strict()
+      .default(defaults.typography),
     landingTheme: themeSchema.optional(),
     productInfo: productInfoSchema.default(defaults.productInfo),
     home: z
@@ -363,6 +380,7 @@ const baseSettingsSchema = z
         showHero: z.boolean(),
         showSearch: z.boolean().default(true),
         showPriceSort: z.boolean().default(true),
+        showNavigation: z.boolean().default(true),
         showBenefits: z.boolean(),
         benefits: z.array(text(150)).max(6),
         licenseCard: z
@@ -403,6 +421,7 @@ const storeContentSchema = baseSettingsSchema
       .extend({
         showSearch: z.boolean().optional(),
         showPriceSort: z.boolean().optional(),
+        showNavigation: z.boolean().optional(),
         licenseCard: baseSettingsSchema.shape.home.unwrap().shape.licenseCard.unwrap().optional(),
       })
       .optional(),

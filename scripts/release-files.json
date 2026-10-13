@@ -192,5 +192,9 @@
   "src/shared/product-info.ts",
   "migrations/0018_category_translations.sql",
   "tests/store-polish.test.ts",
-  "tests/e2e/store-polish.spec.ts"
+  "tests/e2e/store-polish.spec.ts",
+  "src/shared/typography.ts",
+  "tests/header-typography.test.ts",
+  "tests/e2e/header-typography.spec.ts",
+  "tests/e2e/quote-retry.spec.ts"
 ]

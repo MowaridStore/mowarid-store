@@ -74,6 +74,8 @@ export async function settings(db: D1Database): Promise<Settings> {
     },
     theme: { ...defaults.theme, ...saved.theme },
     productInfo: { ...defaults.productInfo, ...saved.productInfo },
+    branding: { ...defaults.branding, ...saved.branding },
+    typography: { ...defaults.typography, ...saved.typography },
     socials: { ...defaults.socials, ...saved.socials },
     policyVisibility: { ...defaults.policyVisibility, ...saved.policyVisibility },
     trackingEnabled: !!(

@@ -111,7 +111,7 @@ test('larger benefit cards and the optional authority card save and hide without
       await page.setViewportSize({ width, height: 1000 });
       await expect(page.locator('.benefits-strip > span').first()).toHaveCSS(
         'font-size',
-        width <= 700 ? '14px' : '16px',
+        width <= 700 ? '17px' : '16px',
       );
       const card = await page.locator('.benefits-strip > span').first().boundingBox();
       expect(card!.height).toBeGreaterThanOrEqual(90);

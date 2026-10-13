@@ -149,8 +149,9 @@ export async function saveCredential(env: Env, name: string, value: string) {
 }
 export function sameOrigin(c: Context) {
   const origin = c.req.header('Origin');
-  const expected = (c.env as Env).APP_ORIGIN || new URL(c.req.url).origin;
-  if (origin !== expected) throw new DomainError('forbidden_origin', 'الطلب غير مصرح به.', 403);
+  const expected = new URL(c.req.url).origin;
+  if (!origin || (origin !== expected && origin !== (c.env as Env).APP_ORIGIN))
+    throw new DomainError('forbidden_origin', 'الطلب غير مصرح به.', 403);
 }
 export async function limit(env: Env, key: string, max: number, seconds: number) {
   const current = Math.floor(Date.now() / 1000),

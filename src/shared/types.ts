@@ -335,6 +335,13 @@ export type Settings = {
     accent: string;
     line: string;
   };
+  branding: { logoWidth: number; logoZoom: number; showName: boolean };
+  typography: {
+    family: 'plex' | 'system';
+    desktopSize: number;
+    mobileSize: number;
+    weight: 400 | 500 | 600;
+  };
   landingTheme?: Settings['theme'];
   productInfo: {
     showDeliveryReturns: boolean;
@@ -356,6 +363,7 @@ export type Settings = {
     showHero: boolean;
     showSearch: boolean;
     showPriceSort: boolean;
+    showNavigation: boolean;
     showBenefits: boolean;
     benefits: string[];
     licenseCard: { enabled: boolean; title: string; text: string; documentUrl: string };
@@ -432,6 +440,8 @@ export const defaults: Settings = {
     accent: '#eac79d',
     line: '#dedfd6',
   },
+  branding: { logoWidth: 112, logoZoom: 1, showName: true },
+  typography: { family: 'plex', desktopSize: 16, mobileSize: 17, weight: 500 },
   productInfo: {
     showDeliveryReturns: true,
     deliveryReturnsTitle: 'التوصيل والاسترجاع',
@@ -453,6 +463,7 @@ export const defaults: Settings = {
     showHero: true,
     showSearch: true,
     showPriceSort: true,
+    showNavigation: true,
     showBenefits: true,
     benefits: [
       '◈ منتجات مختارة',

@@ -129,7 +129,7 @@ test('regular product copy, optional summary and readable fonts change while lan
     await expect(page.locator('.product-delivery b').first()).toHaveCSS('font-size', '17px');
     await expect(page.locator('.product-offers .offer-card small').first()).toHaveCSS(
       'font-size',
-      '15px',
+      '17px',
     );
     await page.goto('/offers/daily-bag');
     expect(await formStyles()).toEqual(before);

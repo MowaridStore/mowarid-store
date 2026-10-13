@@ -1662,5 +1662,69 @@
   "نؤكد طلبك هاتفيًا قبل إرساله. للاستفسار عن التوصيل أو الاسترجاع، تواصل مع خدمة العملاء.": {
     "fr": "Nous confirmons votre commande par téléphone avant l’expédition. Pour toute question sur la livraison ou les retours, contactez le service client.",
     "en": "We confirm your order by phone before dispatch. Contact customer service for delivery or return questions."
+  },
+  "عرض الشعار": {
+    "fr": "Affichage du logo",
+    "en": "Logo display"
+  },
+  "عرض الشعار (بالبكسل)": {
+    "fr": "Largeur du logo (pixels)",
+    "en": "Logo width (pixels)"
+  },
+  "تكبير الشعار داخل الإطار": {
+    "fr": "Zoom du logo dans le cadre",
+    "en": "Logo zoom within its frame"
+  },
+  "إظهار اسم المتجر بجانب الشعار": {
+    "fr": "Afficher le nom de la boutique à côté du logo",
+    "en": "Show the store name beside the logo"
+  },
+  "ارفع التكبير إذا كانت الصورة تحتوي على هوامش فارغة. لا يغيّر ذلك ملف الشعار.": {
+    "fr": "Augmentez le zoom si l’image contient des marges vides. Le fichier du logo reste intact.",
+    "en": "Increase the zoom when the image has empty margins. The logo file stays intact."
+  },
+  "الخط وحجم الكتابة": {
+    "fr": "Police et taille du texte",
+    "en": "Font and text size"
+  },
+  "خط المتجر": {
+    "fr": "Police de la boutique",
+    "en": "Store font"
+  },
+  "خط الجهاز": {
+    "fr": "Police de l’appareil",
+    "en": "Device font"
+  },
+  "حجم النص على الحاسوب": {
+    "fr": "Taille du texte sur ordinateur",
+    "en": "Desktop text size"
+  },
+  "حجم النص على الهاتف": {
+    "fr": "Taille du texte sur mobile",
+    "en": "Mobile text size"
+  },
+  "سُمك النص": {
+    "fr": "Épaisseur du texte",
+    "en": "Text weight"
+  },
+  "متوسط": {
+    "fr": "Moyen",
+    "en": "Medium"
+  },
+  "واضح": {
+    "fr": "Renforcé",
+    "en": "Strong"
+  },
+  "اختر حجمًا من 16 إلى 20. يشمل نصوص المتجر والمنتجات وصفحة الطلب.": {
+    "fr": "Choisissez une taille de 16 à 20 pour les textes de la boutique, des produits et du paiement.",
+    "en": "Choose a size from 16 to 20 for store, product and checkout text."
+  },
+  "إظهار القائمة العلوية للمتجر": {
+    "fr": "Afficher le menu supérieur de la boutique",
+    "en": "Show the store header navigation"
+  },
+  "إعادة حساب الإجمالي": {
+    "en": "Recalculate total",
+    "fr": "Recalculer le total"
   }
 }
