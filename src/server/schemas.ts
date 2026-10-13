@@ -380,7 +380,15 @@ const storeContentSchema = baseSettingsSchema
   })
   .partial()
   .extend({
-    home: baseSettingsSchema.shape.home.unwrap().partial().optional(),
+    home: baseSettingsSchema.shape.home
+      .unwrap()
+      .partial()
+      .extend({
+        showSearch: z.boolean().optional(),
+        showPriceSort: z.boolean().optional(),
+        licenseCard: baseSettingsSchema.shape.home.unwrap().shape.licenseCard.unwrap().optional(),
+      })
+      .optional(),
     copy: z
       .record(
         z.string().refine((key) => storeCopyKeys.includes(key), 'Unknown interface phrase'),

@@ -80,3 +80,24 @@ it('the authority card is optional, safe and globally hidden across locales unti
     }).success,
   ).toBe(false);
 });
+
+it('saving unrelated translated home content does not inject an overriding default trust card', () => {
+  const saved = settingsSchema.parse({
+    ...defaults,
+    contentTranslations: {
+      ar: { home: { productsTitle: 'منتجاتنا' } },
+      fr: { home: { tagline: 'Bienvenue' } },
+    },
+  });
+  expect(saved.contentTranslations?.ar?.home).toEqual({ productsTitle: 'منتجاتنا' });
+  expect(saved.contentTranslations?.fr?.home).toEqual({ tagline: 'Bienvenue' });
+  expect(
+    storefrontSettings({
+      ...saved,
+      home: {
+        ...saved.home,
+        licenseCard: { ...defaults.home.licenseCard, enabled: true, title: 'منتجات مرخّصة' },
+      },
+    }).home.licenseCard.title,
+  ).toBe('منتجات مرخّصة');
+});
