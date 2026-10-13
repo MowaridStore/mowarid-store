@@ -53,7 +53,10 @@ test('compact appearance controls save a larger wordmark, global header toggle a
     const { showNavigation, ...oldHome } = home;
     expect(
       (
-        await page.request.put('/api/admin/settings', { headers, data: { ...rest, home: oldHome } })
+        await page.request.put('/api/admin/settings', {
+          headers,
+          data: { ...rest, logo: '/demo/bag.svg', storeLanguages: ['ar', 'fr'], home: oldHome },
+        })
       ).ok(),
     ).toBe(true);
     const retained = (await (await page.request.get('/api/admin/settings')).json()).settings;
@@ -98,6 +101,19 @@ test('compact appearance controls save a larger wordmark, global header toggle a
     await expect(page.getByRole('status')).toContainText('تم حفظ التغييرات.');
     await page.goto('/');
     await expect(page.locator('.mobile-menu')).toHaveCount(1);
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto('/');
+      await expect(page.locator('.store-language-switcher select')).toBeVisible();
+      expect(
+        await page
+          .locator('.store-header .brand')
+          .evaluate((el) => el.getBoundingClientRect().width),
+      ).toBeGreaterThanOrEqual(135);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
     expect(await page.locator('body').evaluate((el) => getComputedStyle(el).fontFamily)).toContain(
       'system-ui',
     );

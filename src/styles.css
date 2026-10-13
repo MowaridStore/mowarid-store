@@ -6613,3 +6613,10 @@ bdi[dir='ltr'] {
   font-size: calc(var(--reading-size) - 1px);
   font-weight: var(--store-weight, 500);
 }
+@media (max-width: 360px) {
+  .storefront:not(.focused-landing) .header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+}
