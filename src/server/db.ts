@@ -73,6 +73,7 @@ export async function settings(db: D1Database): Promise<Settings> {
       licenseCard: { ...defaults.home.licenseCard, ...saved.home?.licenseCard },
     },
     theme: { ...defaults.theme, ...saved.theme },
+    productInfo: { ...defaults.productInfo, ...saved.productInfo },
     socials: { ...defaults.socials, ...saved.socials },
     policyVisibility: { ...defaults.policyVisibility, ...saved.policyVisibility },
     trackingEnabled: !!(
@@ -137,8 +138,11 @@ export async function categories(db: D1Database, onlyPublic = false): Promise<Ca
           (onlyPublic ? ' WHERE active=1' : '') +
           ' ORDER BY position,name,id',
       )
-      .all<Category>()
-  ).results;
+      .all<Omit<Category, 'translations'> & { translations?: string }>()
+  ).results.map((row) => ({
+    ...row,
+    translations: typeof row.translations === 'string' ? JSON.parse(row.translations) : {},
+  }));
 }
 export async function cities(db: D1Database): Promise<City[]> {
   const r = await db.prepare('SELECT json FROM cities WHERE id=1').first<{ json: string }>();

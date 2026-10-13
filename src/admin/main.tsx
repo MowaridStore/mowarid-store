@@ -1,5 +1,6 @@
 import { BundlesEditor } from './bundles';
 import { BulkImporter } from './bulk-import';
+import { localizedCategory } from '../shared/i18n';
 import { normalizeSearch } from '../shared/search';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
@@ -57,6 +58,7 @@ import {
 import { t, money, adminLanguage, setAdminLanguage } from './language';
 import {
   languageNames,
+  direction,
   languages,
   languageOf,
   storefrontSettings,
@@ -176,7 +178,7 @@ function Field({
       {type === 'textarea' ? (
         <textarea
           id={id}
-          dir={dir}
+          dir={dir || 'auto'}
           value={value}
           aria-invalid={!!error}
           aria-describedby={error ? id + '-error' : undefined}
@@ -185,7 +187,7 @@ function Field({
       ) : (
         <input
           id={id}
-          dir={dir}
+          dir={dir || (['tel', 'email', 'url', 'number'].includes(type) ? 'ltr' : 'auto')}
           type={type}
           autoComplete={autoComplete}
           required={required}
@@ -1356,6 +1358,26 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
       wide={wide}
     />
   );
+  const productInfoField = (
+    key: Exclude<keyof Settings['productInfo'], 'showDeliveryReturns'>,
+    label: string,
+    type = 'text',
+  ) => (
+    <Field
+      label={label}
+      type={type}
+      value={displayed.productInfo[key]}
+      onChange={(value) =>
+        setS(
+          updateContent(
+            s,
+            { productInfo: { ...displayed.productInfo, [key]: value } },
+            editingLanguage,
+          ),
+        )
+      }
+    />
+  );
   const price = (key: 'shippingCasa' | 'shippingOther', label: string) => (
     <Field
       label={label}
@@ -1591,7 +1613,7 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                 </p>
               </div>
               {field('brand', t('اسم المتجر'))}
-              {field('whatsapp', t('رقم واتساب بالصيغة الدولية دون +'))}
+              {field('whatsapp', t('رقم واتساب بالصيغة الدولية دون +'), 'tel')}
               {field('contactEmail', t('إيميل التواصل'), 'email')}
               {field('contactPhone', t('هاتف التواصل'), 'tel')}
               <fieldset className="wide">
@@ -1655,6 +1677,33 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
               <p className="muted wide">
                 {t('رسم واحد للطلب كاملًا. عرض الشحن المجاني يعفي السلة كاملة.')}
               </p>
+              <details className="wide product-info-settings">
+                <summary>{t('معلومات صفحة المنتج')}</summary>
+                <div className="form-grid">
+                  <Check
+                    label={t('إظهار ملخص التوصيل والاسترجاع في صفحة المنتج')}
+                    value={s.productInfo.showDeliveryReturns}
+                    onChange={(showDeliveryReturns) =>
+                      setS({ ...s, productInfo: { ...s.productInfo, showDeliveryReturns } })
+                    }
+                  />
+                  {productInfoField('deliveryReturnsTitle', t('عنوان ملخص التوصيل والاسترجاع'))}
+                  {productInfoField(
+                    'deliveryReturnsText',
+                    t('نص ملخص التوصيل والاسترجاع'),
+                    'textarea',
+                  )}
+                  {productInfoField('deliveryTitle', t('عنوان أيقونة التوصيل'))}
+                  {productInfoField('deliveryText', t('نص أيقونة التوصيل'), 'textarea')}
+                  <p className="muted">
+                    {t(
+                      'استخدم {casa} و{other} لإظهار رسوم التوصيل الحالية. تعديل النص لا يغيّر الرسوم.',
+                    )}
+                  </p>
+                  {productInfoField('paymentTitle', t('عنوان أيقونة الدفع'))}
+                  {productInfoField('paymentText', t('نص أيقونة الدفع'), 'textarea')}
+                </div>
+              </details>
               <section className="wide policy-settings">
                 <h2>{t('صفحات المتجر')}</h2>
                 <p className="muted">
@@ -2036,8 +2085,16 @@ function AppearanceSettings({
 }
 function Categories({ action }: { action: Action }) {
   const [rows, setRows] = useState<Category[]>([]),
-    [draft, setDraft] = useState<Category | null>(null);
+    [draft, setDraft] = useState<Category | null>(null),
+    [nameLanguage, setNameLanguage] = useState<Language>('ar'),
+    [defaultNameLanguage, setDefaultNameLanguage] = useState<Language>('ar');
   const load = async () => setRows(await api('/admin/categories'));
+  useEffect(() => {
+    void api('/admin/settings').then(({ settings }) => {
+      setNameLanguage(settings.storeLanguage);
+      setDefaultNameLanguage(settings.storeLanguage);
+    });
+  }, []);
   useEffect(() => {
     void action(load, '');
   }, []);
@@ -2064,6 +2121,7 @@ function Categories({ action }: { action: Action }) {
             setDraft({
               id: crypto.randomUUID(),
               name: '',
+              translations: {},
               image: '',
               icon: '🛍️',
               position: rows.length ? Math.max(...rows.map((row) => row.position)) + 1 : 0,
@@ -2076,11 +2134,37 @@ function Categories({ action }: { action: Action }) {
       </div>
       {draft && (
         <article className="editor-block category-editor">
-          <Field
-            label={t('اسم القسم')}
-            value={draft.name}
-            onChange={(name) => setDraft({ ...draft, name })}
-          />
+          <div className="category-name-language">
+            <label>
+              {t('لغة اسم القسم')}
+              <select
+                aria-label={t('لغة اسم القسم')}
+                value={nameLanguage}
+                onChange={(e) => setNameLanguage(languageOf(e.target.value))}
+              >
+                {languages.map((language) => (
+                  <option key={language} value={language}>
+                    {languageNames[language]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Field
+              label={t('اسم القسم — {language}', { language: languageNames[nameLanguage] })}
+              dir={direction(nameLanguage)}
+              value={
+                draft.translations?.[nameLanguage] ??
+                (nameLanguage === defaultNameLanguage ? draft.name : '')
+              }
+              onChange={(name) =>
+                setDraft({
+                  ...draft,
+                  ...(nameLanguage === defaultNameLanguage ? { name } : {}),
+                  translations: { ...draft.translations, [nameLanguage]: name },
+                })
+              }
+            />
+          </div>
           <Field
             label={t('رمز القسم (اختياري)')}
             value={draft.icon}
@@ -2111,7 +2195,20 @@ function Categories({ action }: { action: Action }) {
               className="primary"
               onClick={() =>
                 void action(async () => {
-                  await api('/admin/categories/' + draft.id, draft, 'PUT');
+                  await api(
+                    '/admin/categories/' + draft.id,
+                    {
+                      ...draft,
+                      name:
+                        draft.translations?.[defaultNameLanguage]?.trim() ||
+                        draft.name.trim() ||
+                        languages
+                          .map((language) => draft.translations?.[language]?.trim())
+                          .find(Boolean) ||
+                        '',
+                    },
+                    'PUT',
+                  );
                   setDraft(null);
                   await load();
                 }, t('تم حفظ القسم.'))
@@ -2133,7 +2230,7 @@ function Categories({ action }: { action: Action }) {
                 category.icon || '🛍️'
               )}
             </span>
-            <strong>{category.name}</strong>
+            <strong>{localizedCategory(category, nameLanguage).name}</strong>
             <span className="badge">{category.active ? t('ظاهر') : t('مخفي')}</span>
             <div className="toolbar">
               <button
@@ -2510,7 +2607,12 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     </div>
                   </td>
                   <td data-label={t('القسم')}>
-                    {categories.find((c) => c.id === p.categoryId)?.name || t('دون قسم')}
+                    {categories.find((c) => c.id === p.categoryId)
+                      ? localizedCategory(
+                          categories.find((c) => c.id === p.categoryId)!,
+                          storeLanguage,
+                        ).name
+                      : t('دون قسم')}
                   </td>
                   <td data-label={t('السعر')}>{money(p.price)}</td>
                   <td data-label={t('التوفر')}>
@@ -2794,7 +2896,7 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                     <option value="">{t('دون قسم')}</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
-                        {category.name}
+                        {localizedCategory(category, storeLanguage).name}
                         {category.active ? '' : t(' · القسم مخفي')}
                       </option>
                     ))}

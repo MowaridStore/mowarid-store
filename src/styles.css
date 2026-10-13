@@ -6303,3 +6303,146 @@ td p {
     margin-inline-start: 0;
   }
 }
+
+/* Keep landing visuals unchanged while making the regular storefront easier to read. */
+.storefront:not(.focused-landing) .product-price-line {
+  flex-wrap: wrap;
+}
+.storefront:not(.focused-landing) .product-price-line del {
+  font-size: 18px;
+  font-weight: 500;
+}
+.storefront:not(.focused-landing) .product-price-line > span {
+  font-size: 15px;
+  font-weight: 500;
+}
+.storefront:not(.focused-landing) .product-price-line .promotion-badge {
+  font-size: 15px;
+  font-weight: 700;
+}
+.storefront:not(.focused-landing) .product-offers h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.storefront:not(.focused-landing) .product-offers .offer-card {
+  padding: 16px;
+}
+.storefront:not(.focused-landing) .product-offers .offer-card b {
+  font-size: 16px;
+  font-weight: 600;
+}
+.storefront:not(.focused-landing) .product-offers .offer-card small {
+  font-size: 15px;
+  line-height: 1.7;
+}
+.storefront:not(.focused-landing) .product-offers .offer-card strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+.storefront:not(.focused-landing) .product-delivery b {
+  font-size: 17px;
+  font-weight: 600;
+}
+.storefront:not(.focused-landing) .product-delivery small {
+  font-size: 15px;
+  line-height: 1.8;
+}
+.storefront:not(.focused-landing) .product-description-panel summary {
+  font-size: 18px;
+}
+.storefront:not(.focused-landing) .product-description-panel p,
+.storefront:not(.focused-landing) .product-description {
+  font-size: 16px;
+  line-height: 1.9;
+}
+.storefront:not(.focused-landing) .product-quantity > span,
+.storefront:not(.focused-landing) .availability,
+.storefront:not(.focused-landing) .text-button {
+  font-size: 14px;
+}
+.storefront:not(.focused-landing) .product-card h3 {
+  font-size: 16px;
+  line-height: 1.65;
+}
+.storefront:not(.focused-landing) .category-link > span:last-child {
+  font-size: 14px;
+  font-weight: 600;
+}
+.storefront:not(.focused-landing) .brand small {
+  font-size: 13px;
+}
+.storefront:not(.focused-landing) .desktop-nav,
+.storefront:not(.focused-landing) .store-footer p,
+.storefront:not(.focused-landing) .store-footer a {
+  font-size: 15px;
+}
+.storefront:not(.focused-landing) .hero-copy > p {
+  font-size: 17px;
+  line-height: 1.9;
+}
+.storefront:not(.focused-landing) .product-buy > .primary,
+.storefront:not(.focused-landing) .product-buy > .secondary {
+  font-size: 16px;
+  font-weight: 600;
+}
+.license-card {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+}
+.license-card h2 {
+  font-size: 19px;
+  font-weight: 600;
+}
+.phone-number,
+bdi[dir='ltr'] {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.category-name-language {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+.product-info-settings {
+  padding-block: 12px;
+  border-block-start: 1px solid var(--line);
+}
+.product-info-settings > summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+.product-info-settings > .form-grid {
+  margin-top: 16px;
+}
+@media (max-width: 700px) {
+  .category-name-language {
+    grid-template-columns: 1fr;
+  }
+  .storefront:not(.focused-landing) .product-price-line del {
+    font-size: 17px;
+  }
+  .storefront:not(.focused-landing) .product-offers .offer-card strong {
+    font-size: 17px;
+  }
+  .storefront:not(.focused-landing) .product-card h3 {
+    font-size: 15px;
+  }
+}
+.storefront:not(.focused-landing) .announcement {
+  font-size: 13px;
+  font-weight: 500;
+}
+.storefront:not(.focused-landing) .hero-copy .eyebrow,
+.storefront:not(.focused-landing) .hero-proof {
+  font-size: 14px;
+}
+.storefront:not(.focused-landing) .eyebrow {
+  color: color-mix(in srgb, var(--accent) 60%, var(--ink));
+}
+.storefront:not(.focused-landing) .primary:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}

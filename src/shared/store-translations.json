@@ -416,8 +416,8 @@
     "fr": "(facultatif)"
   },
   "التوصيل إلى عنوانك": {
-    "en": "Delivery to your address",
-    "fr": "Livraison à votre adresse"
+    "fr": "Livraison à votre adresse",
+    "en": "Delivery to your address"
   },
   "يُحسب حسب المدينة · رسم واحد للطلب": {
     "en": "Based on city · One fee per order",
@@ -1602,5 +1602,65 @@
   "السعر: من الأعلى إلى الأقل": {
     "en": "Price: high to low",
     "fr": "Prix : décroissant"
+  },
+  "منتجاتنا مرخصة حسب الصنف من :": {
+    "fr": "Nos produits sont autorisés, selon leur catégorie, par :",
+    "en": "Our products are licensed, by category, by:"
+  },
+  "معلومات صفحة المنتج": {
+    "fr": "Informations de la fiche produit",
+    "en": "Product page information"
+  },
+  "إظهار ملخص التوصيل والاسترجاع في صفحة المنتج": {
+    "fr": "Afficher le résumé livraison et retours sur la fiche produit",
+    "en": "Show the delivery and returns summary on product pages"
+  },
+  "عنوان ملخص التوصيل والاسترجاع": {
+    "fr": "Titre du résumé livraison et retours",
+    "en": "Delivery and returns summary title"
+  },
+  "نص ملخص التوصيل والاسترجاع": {
+    "fr": "Texte du résumé livraison et retours",
+    "en": "Delivery and returns summary text"
+  },
+  "عنوان أيقونة التوصيل": {
+    "fr": "Titre de l’icône livraison",
+    "en": "Delivery icon title"
+  },
+  "نص أيقونة التوصيل": {
+    "fr": "Texte de l’icône livraison",
+    "en": "Delivery icon text"
+  },
+  "عنوان أيقونة الدفع": {
+    "fr": "Titre de l’icône paiement",
+    "en": "Payment icon title"
+  },
+  "نص أيقونة الدفع": {
+    "fr": "Texte de l’icône paiement",
+    "en": "Payment icon text"
+  },
+  "استخدم {casa} و{other} لإظهار رسوم التوصيل الحالية. تعديل النص لا يغيّر الرسوم.": {
+    "fr": "Utilisez {casa} et {other} pour afficher les frais de livraison actuels. Modifier le texte ne change pas les frais.",
+    "en": "Use {casa} and {other} to show current delivery fees. Editing the text does not change the fees."
+  },
+  "لغة اسم القسم": {
+    "fr": "Langue du nom de la catégorie",
+    "en": "Category name language"
+  },
+  "اسم القسم — {language}": {
+    "fr": "Nom de la catégorie — {language}",
+    "en": "Category name — {language}"
+  },
+  "الدار البيضاء: {casa} · باقي المدن: {other}": {
+    "fr": "Casablanca : {casa} · Autres villes : {other}",
+    "en": "Casablanca: {casa} · Other cities: {other}"
+  },
+  "نؤكد طلبك هاتفيًا قبل إرساله.": {
+    "fr": "Nous confirmons votre commande par téléphone avant l’expédition.",
+    "en": "We confirm your order by phone before dispatch."
+  },
+  "نؤكد طلبك هاتفيًا قبل إرساله. للاستفسار عن التوصيل أو الاسترجاع، تواصل مع خدمة العملاء.": {
+    "fr": "Nous confirmons votre commande par téléphone avant l’expédition. Pour toute question sur la livraison ou les retours, contactez le service client.",
+    "en": "We confirm your order by phone before dispatch. Contact customer service for delivery or return questions."
   }
 }

@@ -188,5 +188,9 @@
   "public/trust/ammps.png",
   "public/trust/onssa.png",
   "src/shared/product-sort.ts",
-  "tests/product-sort.test.ts"
+  "tests/product-sort.test.ts",
+  "src/shared/product-info.ts",
+  "migrations/0018_category_translations.sql",
+  "tests/store-polish.test.ts",
+  "tests/e2e/store-polish.spec.ts"
 ]

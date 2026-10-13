@@ -36,7 +36,11 @@ export type StoreContent = Partial<
     Settings,
     'announcement' | 'heroTitle' | 'heroText' | 'terms' | 'privacy' | 'returns' | 'contact'
   >
-> & { home?: Partial<Settings['home']>; copy?: Record<string, string> };
+> & {
+  home?: Partial<Settings['home']>;
+  productInfo?: Partial<Settings['productInfo']>;
+  copy?: Record<string, string>;
+};
 export const PRODUCT_DESCRIPTION_LIMIT = 20000;
 export type LandingFormAppearance = {
   background: string;
@@ -176,6 +180,7 @@ export type Category = {
   icon: string;
   position: number;
   active: number;
+  translations?: Partial<Record<Language, string>>;
 };
 export type PublicProduct = Pick<
   Product,
@@ -330,6 +335,16 @@ export type Settings = {
     accent: string;
     line: string;
   };
+  landingTheme?: Settings['theme'];
+  productInfo: {
+    showDeliveryReturns: boolean;
+    deliveryReturnsTitle: string;
+    deliveryReturnsText: string;
+    deliveryTitle: string;
+    deliveryText: string;
+    paymentTitle: string;
+    paymentText: string;
+  };
   home: {
     tagline: string;
     heroEyebrow: string;
@@ -417,6 +432,16 @@ export const defaults: Settings = {
     accent: '#eac79d',
     line: '#dedfd6',
   },
+  productInfo: {
+    showDeliveryReturns: true,
+    deliveryReturnsTitle: 'التوصيل والاسترجاع',
+    deliveryReturnsText:
+      'نؤكد طلبك هاتفيًا قبل إرساله. للاستفسار عن التوصيل أو الاسترجاع، تواصل مع خدمة العملاء.',
+    deliveryTitle: 'التوصيل إلى عنوانك',
+    deliveryText: 'الدار البيضاء: {casa} · باقي المدن: {other}',
+    paymentTitle: 'الدفع عند الاستلام',
+    paymentText: 'نؤكد طلبك هاتفيًا قبل إرساله.',
+  },
   home: {
     tagline: 'اختيارات لحياة أجمل',
     heroEyebrow: 'مختارة بعناية. من أجل يومك.',
@@ -437,8 +462,8 @@ export const defaults: Settings = {
     ],
     licenseCard: {
       enabled: false,
-      title: 'معلومات تراخيص المنتجات',
-      text: 'بيانات التسجيل والشهادات الخاصة بالمنتجات.',
+      title: 'منتجاتنا مرخصة حسب الصنف من :',
+      text: '',
       documentUrl: '',
     },
     productsEyebrow: 'اكتشف ما يناسبك',

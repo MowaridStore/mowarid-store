@@ -7,6 +7,11 @@ export function policyHtml(source: string): string {
     .replace(/^[\u200B-\u200F\uFEFF]+/u, '')
     .replace(/\*\*([^\n*]+)\*\*/g, (_, text: string) => '**' + text.trim() + '**');
   return sanitizeHtml(marked.parse(markdown, { async: false, gfm: true, breaks: true }), {
+    textFilter: (text) =>
+      text.replace(
+        /(?<![\p{L}\p{N}])(?:\+\d(?:[ \u00a0().-]*\d){7,14}|0[5-7](?:[ .-]*\d){8})(?![\p{L}\p{N}])/gu,
+        (phone) => '<bdi dir="ltr" class="phone-number">' + phone + '</bdi>',
+      ),
     allowedTags: [
       'h2',
       'h3',

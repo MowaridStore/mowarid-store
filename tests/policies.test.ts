@@ -29,7 +29,9 @@ describe('formatted policy pages', () => {
     expect(html).not.toMatch(/script|onclick|onerror|javascript|password|<img|<form|<input|style=/);
   });
   it('retains plain text line breaks and supports French and English headings', () => {
-    expect(policyHtml('الهاتف\n+212 612 345 678')).toContain('الهاتف<br />+212 612 345 678');
+    expect(policyHtml('الهاتف\n+212 612 345 678')).toContain(
+      'الهاتف<br /><bdi dir="ltr" class="phone-number">+212 612 345 678</bdi>',
+    );
     expect(policyHtml('## Conditions\n\n**Livraison**')).toContain('<h2>Conditions</h2>');
   });
   it('defaults existing stores to visible pages and accepts independent switches without changing prose', () => {

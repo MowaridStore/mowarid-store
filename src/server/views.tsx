@@ -1,5 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { productSort, sortedProducts } from '../shared/product-sort';
+import { localizedCategory } from '../shared/i18n';
+import { productDeliveryText } from '../shared/product-info';
 import { pricedProduct, promotionClock, promotionRemaining, tailPricing } from '../shared/commerce';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
@@ -129,6 +131,7 @@ export function Layout({
     turnstileSiteKey: s.turnstileSiteKey,
     attributionDays: s.attributionDays,
     showPriceSort: s.home.showPriceSort !== false,
+    deliveryText: s.productInfo.deliveryText,
   };
   const data = {
     settings: publicSettings,
@@ -583,6 +586,7 @@ export function Home({
   const t = storeTranslator(s),
     money = localizedMoney(s);
 
+  categories = categories.map((category) => localizedCategory(category, s.storeLanguage));
   const selected = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
   const selectedSort = productSort(sort, s.home.showPriceSort !== false);
   const ordered = sortedProducts(products, selectedSort, (p) => pricedProduct(p).price, searchIds);
@@ -657,19 +661,17 @@ export function Home({
       )}
       {s.home.licenseCard.enabled && (
         <section class="license-card" aria-label={s.home.licenseCard.title}>
+          {s.home.licenseCard.title && <h2>{s.home.licenseCard.title}</h2>}
           <div class="license-logos">
             <img src="/trust/onssa.png" alt="ONSSA" width="160" height="74" loading="lazy" />
             <img src="/trust/ammps.png" alt="AMMPS" width="160" height="98" loading="lazy" />
           </div>
-          <div>
-            {s.home.licenseCard.title && <h2>{s.home.licenseCard.title}</h2>}
-            {s.home.licenseCard.text && <p>{s.home.licenseCard.text}</p>}
-            {s.home.licenseCard.documentUrl && (
-              <a href={s.home.licenseCard.documentUrl} target="_blank" rel="noopener noreferrer">
-                {t('عرض بيانات التسجيل والشهادات ↗')}
-              </a>
-            )}
-          </div>
+          {s.home.licenseCard.text && <p>{s.home.licenseCard.text}</p>}
+          {s.home.licenseCard.documentUrl && (
+            <a href={s.home.licenseCard.documentUrl} target="_blank" rel="noopener noreferrer">
+              {t('عرض بيانات التسجيل والشهادات ↗')}
+            </a>
+          )}
         </section>
       )}
       {!!categories.length && (
@@ -1066,39 +1068,36 @@ export function ProductPage({
             <div>
               <Icon name="truck" />
               <span>
-                <b>{t('التوصيل إلى بابك')}</b>
+                <b>{s.productInfo.deliveryTitle}</b>
                 <small data-product-delivery>
-                  {t('الدار البيضاء:')}
-                  {money(s.shippingCasa)}
-                  {t('· باقي المدن:')}
-                  {money(s.shippingOther)}
+                  {productDeliveryText(
+                    s.productInfo.deliveryText,
+                    money(s.shippingCasa),
+                    money(s.shippingOther),
+                  )}
                 </small>
               </span>
             </div>
             <div>
               <Icon name="shield" />
               <span>
-                <b>{t('ادفع عند الاستلام')}</b>
-                <small>{t('نتصل بك لتأكيد الطلب قبل إرساله.')}</small>
+                <b>{s.productInfo.paymentTitle}</b>
+                <small>{s.productInfo.paymentText}</small>
               </span>
             </div>
           </div>
           {p.presentation?.descriptionFormat !== 'html' && <DescriptionPanel p={p} s={s} />}
-          <details class="product-description-panel">
-            <summary>
-              {t(policyVisible(s, 'returns') ? 'التوصيل والاسترجاع' : 'التوصيل')}
-              <span>＋</span>
-            </summary>
-            <p>{t('رسم توصيل واحد لكل طلب. يظهر المبلغ النهائي بعد اختيار مدينتك.')}</p>
-            {policyVisible(s, 'returns') && (
-              <>
-                <div class="policy-content policy-product-summary">
-                  {raw(policyHtml(s.returns))}
-                </div>
-                <a href="/policies/returns">{t('اطّلع على سياسة الاسترجاع ←')}</a>
-              </>
+          {s.productInfo.showDeliveryReturns &&
+            (s.productInfo.deliveryReturnsTitle.trim() ||
+              s.productInfo.deliveryReturnsText.trim()) && (
+              <details class="product-description-panel product-service-summary">
+                <summary>
+                  {s.productInfo.deliveryReturnsTitle}
+                  <span>＋</span>
+                </summary>
+                <p style={{ whiteSpace: 'pre-line' }}>{s.productInfo.deliveryReturnsText}</p>
+              </details>
             )}
-          </details>
         </div>
       </section>
       {p.presentation?.descriptionFormat === 'html' && (
@@ -1601,7 +1600,7 @@ function StoreContacts({
       {showContact && s.contactPhone && (
         <a href={'tel:' + s.contactPhone.replace(/[^+\d]/g, '')}>
           <Icon name="phone" />
-          {s.contactPhone}
+          <bdi dir="ltr">{s.contactPhone}</bdi>
         </a>
       )}
       {!!socials.length && (

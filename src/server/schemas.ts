@@ -221,10 +221,36 @@ export const categorySchema = z
   .object({
     id: z.string().uuid(),
     name: z.string().trim().min(2).max(80),
+    translations: z
+      .object({ ar: text(80).optional(), fr: text(80).optional(), en: text(80).optional() })
+      .strict()
+      .optional(),
     image: url.default(''),
     icon: text(20).default('🛍️'),
     position: z.number().int().min(0).max(1000),
     active: z.number().int().min(0).max(1),
+  })
+  .strict();
+const themeSchema = z
+  .object({
+    primary: color,
+    background: color,
+    surface: color,
+    text: color,
+    muted: color,
+    accent: color,
+    line: color,
+  })
+  .strict();
+const productInfoSchema = z
+  .object({
+    showDeliveryReturns: z.boolean(),
+    deliveryReturnsTitle: text(150),
+    deliveryReturnsText: text(1200),
+    deliveryTitle: text(150),
+    deliveryText: text(500),
+    paymentTitle: text(150),
+    paymentText: text(500),
   })
   .strict();
 const baseSettingsSchema = z
@@ -322,18 +348,9 @@ const baseSettingsSchema = z
       .optional()
       .default(''),
     attributionDays: z.literal(30),
-    theme: z
-      .object({
-        primary: color,
-        background: color,
-        surface: color,
-        text: color,
-        muted: color,
-        accent: color,
-        line: color,
-      })
-      .strict()
-      .default(defaults.theme),
+    theme: themeSchema.default(defaults.theme),
+    landingTheme: themeSchema.optional(),
+    productInfo: productInfoSchema.default(defaults.productInfo),
     home: z
       .object({
         tagline: text(150),
@@ -389,6 +406,7 @@ const storeContentSchema = baseSettingsSchema
         licenseCard: baseSettingsSchema.shape.home.unwrap().shape.licenseCard.unwrap().optional(),
       })
       .optional(),
+    productInfo: productInfoSchema.partial().optional(),
     copy: z
       .record(
         z.string().refine((key) => storeCopyKeys.includes(key), 'Unknown interface phrase'),

@@ -1058,6 +1058,14 @@ api.put('/admin/settings', async (c) => {
     body = await c.req.json(),
     s = settingsSchema.parse(body);
   s.metaVersion = META_GRAPH_VERSION;
+  s.landingTheme =
+    old.landingTheme ||
+    (Object.keys(old.theme).some(
+      (key) => s.theme[key as keyof typeof s.theme] !== old.theme[key as keyof typeof s.theme],
+    )
+      ? old.theme
+      : s.landingTheme);
+  if (!Object.hasOwn(body, 'productInfo')) s.productInfo = old.productInfo;
   if (!body.home || !Object.hasOwn(body.home, 'showSearch'))
     s.home.showSearch = old.home.showSearch;
   if (!body.home || !Object.hasOwn(body.home, 'showPriceSort'))
@@ -1412,7 +1420,8 @@ api.patch('/admin/categories/order', async (c) => {
   return c.json({ ok: true });
 });
 api.put('/admin/categories/:id', async (c) => {
-  const category = categorySchema.parse(await c.req.json());
+  const body = await c.req.json();
+  const category = categorySchema.parse(body);
   if (category.id !== c.req.param('id')) throw new DomainError('invalid_id', 'معرف غير صالح.');
   const existing = await categories(c.env.DB);
   if (!existing.some((row) => row.id === category.id) && existing.length >= 100)
@@ -1424,7 +1433,7 @@ api.put('/admin/categories/:id', async (c) => {
   )
     throw new DomainError('category_exists', 'يوجد قسم بهذا الاسم؛ اختر اسمًا مختلفًا.');
   await c.env.DB.prepare(
-    'INSERT INTO categories(id,name,image,icon,position,active) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,image=excluded.image,icon=excluded.icon,position=excluded.position,active=excluded.active',
+    'INSERT INTO categories(id,name,image,icon,position,active,translations) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,image=excluded.image,icon=excluded.icon,position=excluded.position,active=excluded.active,translations=excluded.translations',
   )
     .bind(
       category.id,
@@ -1433,6 +1442,11 @@ api.put('/admin/categories/:id', async (c) => {
       category.icon,
       category.position,
       category.active,
+      JSON.stringify(
+        Object.hasOwn(body, 'translations')
+          ? category.translations || {}
+          : existing.find((row) => row.id === category.id)?.translations || {},
+      ),
     )
     .run();
   await audit(c.env.DB, c.get('admin'), 'category_saved', category.id);

@@ -1,4 +1,5 @@
 import { productSort, sortedProducts } from '../shared/product-sort';
+import { productDeliveryText } from '../shared/product-info';
 import {
   cartOffers,
   bundleChoices,
@@ -21,6 +22,7 @@ type Config = {
   settings: {
     attributionDays: number;
     showPriceSort: boolean;
+    deliveryText: string;
     storeLanguage: Language;
     storeLanguages: Language[];
     copy: Record<string, string>;
@@ -638,10 +640,11 @@ function renderCheckout(html: string) {
     if ($('[data-product-delivery]'))
       $('[data-product-delivery]')!.textContent = priced.freeShipping
         ? t('توصيل مجاني مع هذا العرض')
-        : t('الدار البيضاء: ') +
-          money(config.settings.shippingCasa) +
-          t(' · باقي المدن: ') +
-          money(config.settings.shippingOther);
+        : productDeliveryText(
+            config.settings.deliveryText,
+            money(config.settings.shippingCasa),
+            money(config.settings.shippingOther),
+          );
   }
   if ($('#supplier-conflict')) $('#supplier-conflict')!.hidden = !conflict;
   const addButton = $<HTMLButtonElement>('#add-offer');

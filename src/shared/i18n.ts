@@ -7,6 +7,7 @@ import {
   type Settings,
   type Product,
   type StoreContent,
+  type Category,
 } from './types';
 export const languages: Language[] = ['ar', 'fr', 'en'];
 export const languageNames: Record<Language, string> = {
@@ -60,12 +61,21 @@ export function storefrontSettings(s: Settings): Settings {
     ...s,
     storeLanguage: language,
     home: translateDefaults(s.home, defaults.home),
+    productInfo: translateDefaults(
+      { ...defaults.productInfo, ...s.productInfo },
+      defaults.productInfo,
+    ),
   };
   for (const key of contentKeys) localized[key] = translateDefaults(s[key], defaults[key]);
   const content = s.contentTranslations?.[language] || {};
   return {
     ...localized,
     ...content,
+    productInfo: {
+      ...localized.productInfo,
+      ...content.productInfo,
+      showDeliveryReturns: s.productInfo?.showDeliveryReturns !== false,
+    },
     home: {
       ...localized.home,
       ...content.home,
@@ -100,6 +110,9 @@ export function updateContent(
         ...current,
         ...patch,
         ...(patch.home ? { home: { ...current.home, ...patch.home } } : {}),
+        ...(patch.productInfo
+          ? { productInfo: { ...current.productInfo, ...patch.productInfo } }
+          : {}),
       },
     },
   };
@@ -131,7 +144,12 @@ export function localizedProduct(p: Product, language: Language): Product {
 export function landingSettings(s: Settings, p?: Product): Settings {
   if (p?.pageMode !== 'landing') return s;
   const language = languageOf(p.presentation?.landingLanguage ?? s.storeLanguage);
-  return { ...s, storeLanguage: language, storeLanguages: [language] };
+  return {
+    ...s,
+    theme: s.landingTheme || s.theme,
+    storeLanguage: language,
+    storeLanguages: [language],
+  };
 }
 export function localizedLandingButton(s: Settings, text?: string) {
   const key = 'اطلب الآن';
@@ -187,4 +205,8 @@ export function visitorLanguage(
   for (const candidate of [requested, remembered, s.storeLanguage])
     if (enabled.includes(candidate as Language)) return candidate as Language;
   return enabled[0];
+}
+
+export function localizedCategory(category: Category, language: Language): Category {
+  return { ...category, name: category.translations?.[language]?.trim() || category.name };
 }
