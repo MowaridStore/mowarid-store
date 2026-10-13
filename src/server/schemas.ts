@@ -89,6 +89,7 @@ export const blockSchema = z.object({
       textColor: color.optional(),
       size: z.number().min(12).max(40).optional(),
       margin: z.number().min(0).max(100).optional(),
+      codBadgeText: text(150).optional(),
       formTitle: text(200).optional(),
       formSubtitle: text(300).optional(),
       submitText: text(150).optional(),
@@ -344,8 +345,13 @@ const baseSettingsSchema = z
         heroProof: z.array(text(150)).max(6),
         showHero: z.boolean(),
         showSearch: z.boolean().default(true),
+        showPriceSort: z.boolean().default(true),
         showBenefits: z.boolean(),
         benefits: z.array(text(150)).max(6),
+        licenseCard: z
+          .object({ enabled: z.boolean(), title: text(150), text: text(500), documentUrl: url })
+          .strict()
+          .default(defaults.home.licenseCard),
         productsEyebrow: text(150),
         productsTitle: text(150),
         productTagline: text(150),

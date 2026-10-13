@@ -169,6 +169,7 @@ app.get('/', async (c) => {
         products={p}
         categories={await categories(c.env.DB, true)}
         selectedCategory={c.req.query('category') || ''}
+        sort={c.req.query('sort') || ''}
         searchIds={searchIds}
       />
     </Layout>,

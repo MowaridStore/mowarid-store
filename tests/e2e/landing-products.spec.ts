@@ -65,7 +65,7 @@ test('landing choices preserve customer fields and cart and submit the selected 
     await picker.getByLabel('البحث باسم أو كود المنتج', { exact: true }).fill('DEMO-B1');
     await picker.locator('.landing-product-pick > label input').check();
     await picker.getByLabel('مكوّن من الباك الحالي (قطعة واحدة)', { exact: true }).check();
-    await page.getByLabel('نص شارة الدفع', { exact: true }).fill('اطلب بأمان');
+    await page.getByLabel('شارة الدفع أعلى الاستمارة', { exact: true }).fill('اطلب بأمان');
     await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('تم حفظ المنتج.');
     const saved = (await (await page.request.get('/api/admin/products')).json()).find(
@@ -130,7 +130,9 @@ test('landing choices preserve customer fields and cart and submit the selected 
           headers,
           data: {
             ...saved,
-            presentation: { ...saved.presentation, landingCodBadge: { visible: false } },
+            blocks: saved.blocks.map((b: any) =>
+              b.type === 'ORDER_FORM' ? { ...b, settings: { ...b.settings, codBadgeText: '' } } : b,
+            ),
           },
         })
       ).ok(),

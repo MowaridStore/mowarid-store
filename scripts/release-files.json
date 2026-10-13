@@ -175,5 +175,18 @@
   "tests/e2e/bulk-import.spec.ts",
   "src/shared/landing-products.ts",
   "tests/landing-products.test.ts",
-  "tests/e2e/landing-products.spec.ts"
+  "tests/e2e/landing-products.spec.ts",
+  "tests/home-trust.test.ts",
+  "tests/e2e/trust-form.spec.ts",
+  "public/category-icons/beauty.svg",
+  "public/category-icons/digestion.svg",
+  "public/category-icons/joints.svg",
+  "public/category-icons/skincare.svg",
+  "public/category-icons/sleep.svg",
+  "public/category-icons/vitamins.svg",
+  "public/category-icons/weight.png",
+  "public/trust/ammps.png",
+  "public/trust/onssa.png",
+  "src/shared/product-sort.ts",
+  "tests/product-sort.test.ts"
 ]

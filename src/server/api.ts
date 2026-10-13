@@ -1060,6 +1060,10 @@ api.put('/admin/settings', async (c) => {
   s.metaVersion = META_GRAPH_VERSION;
   if (!body.home || !Object.hasOwn(body.home, 'showSearch'))
     s.home.showSearch = old.home.showSearch;
+  if (!body.home || !Object.hasOwn(body.home, 'showPriceSort'))
+    s.home.showPriceSort = old.home.showPriceSort;
+  if (!body.home || !Object.hasOwn(body.home, 'licenseCard'))
+    s.home.licenseCard = old.home.licenseCard;
   for (const key of ['contactEmail', 'contactPhone', 'socials', 'checkoutOffers'] as const)
     if (!Object.hasOwn(body, key)) (s as any)[key] = old[key];
   for (const key of ['adminLanguage', 'storeLanguage', 'contentTranslations'] as const)

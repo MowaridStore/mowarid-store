@@ -66,7 +66,17 @@ export function storefrontSettings(s: Settings): Settings {
   return {
     ...localized,
     ...content,
-    home: { ...localized.home, ...content.home, showSearch: s.home.showSearch !== false },
+    home: {
+      ...localized.home,
+      ...content.home,
+      showSearch: s.home.showSearch !== false,
+      showPriceSort: s.home.showPriceSort !== false,
+      licenseCard: {
+        ...localized.home.licenseCard,
+        ...content.home?.licenseCard,
+        enabled: s.home.licenseCard?.enabled === true,
+      },
+    },
   } as Settings;
 }
 export function storeTranslator(s: Settings) {

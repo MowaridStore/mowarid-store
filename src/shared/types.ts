@@ -52,6 +52,7 @@ export type LandingFormAppearance = {
   buttonText: string;
 };
 export type FormContent = {
+  codBadgeText?: string;
   formTitle?: string;
   formSubtitle?: string;
   submitText?: string;
@@ -68,6 +69,7 @@ export type FormContent = {
   showNotes?: boolean;
 };
 export const formDefaults = {
+  codBadgeText: 'الدفع عند الاستلام ✓',
   formTitle: 'اختر عرضك وأكمل طلبك',
   formSubtitle: 'خطوة واحدة تفصلك عن طلبك',
   submitText: 'تأكيد الطلب · الدفع عند الاستلام ←',
@@ -338,8 +340,10 @@ export type Settings = {
     heroProof: string[];
     showHero: boolean;
     showSearch: boolean;
+    showPriceSort: boolean;
     showBenefits: boolean;
     benefits: string[];
+    licenseCard: { enabled: boolean; title: string; text: string; documentUrl: string };
     productsEyebrow: string;
     productsTitle: string;
     productTagline: string;
@@ -423,6 +427,7 @@ export const defaults: Settings = {
     heroProof: ['✓ الدفع عند الاستلام', '✓ تأكيد هاتفي'],
     showHero: true,
     showSearch: true,
+    showPriceSort: true,
     showBenefits: true,
     benefits: [
       '◈ منتجات مختارة',
@@ -430,6 +435,12 @@ export const defaults: Settings = {
       '✓ ادفع عند الاستلام',
       '♡ دعم عبر واتساب',
     ],
+    licenseCard: {
+      enabled: false,
+      title: 'معلومات تراخيص المنتجات',
+      text: 'بيانات التسجيل والشهادات الخاصة بالمنتجات.',
+      documentUrl: '',
+    },
     productsEyebrow: 'اكتشف ما يناسبك',
     productsTitle: 'اختياراتنا لك',
     productTagline: 'اختيار لحياة أجمل',

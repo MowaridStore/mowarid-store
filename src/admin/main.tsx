@@ -3,7 +3,11 @@ import { BulkImporter } from './bulk-import';
 import { normalizeSearch } from '../shared/search';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { productCopy, updateProductCopy, type ProductCopy } from './product-copy';
-import { landingFormAppearance, landingAppearanceLabels } from '../shared/landing-appearance';
+import {
+  landingFormAppearance,
+  landingAppearanceLabels,
+  landingBadgeText,
+} from '../shared/landing-appearance';
 import { toLocalDateTime, toUtcDateTime } from './deadline';
 import { pricedProduct } from '../shared/commerce';
 import { keepAccordionHeader } from './accordion';
@@ -213,14 +217,14 @@ function Check({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label>
+    <label className="admin-check">
       <input
         type="checkbox"
         disabled={disabled}
         checked={value}
         onChange={(e) => onChange(e.target.checked)}
       />
-      {label}
+      <span>{label}</span>
     </label>
   );
 }
@@ -1766,7 +1770,15 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                       {
                         ...s,
                         theme: value.theme,
-                        home: { ...s.home, showSearch: value.home.showSearch },
+                        home: {
+                          ...s.home,
+                          showSearch: value.home.showSearch,
+                          showPriceSort: value.home.showPriceSort,
+                          licenseCard: {
+                            ...s.home.licenseCard,
+                            enabled: value.home.licenseCard.enabled,
+                          },
+                        },
                       },
                       { home: value.home, heroTitle: value.heroTitle, heroText: value.heroText },
                       editingLanguage,
@@ -1869,6 +1881,11 @@ function AppearanceSettings({
         onChange={(v) => home('showSearch', v)}
       />
       <Check
+        label={t('إظهار ترتيب المنتجات حسب السعر')}
+        value={s.home.showPriceSort !== false}
+        onChange={(v) => home('showPriceSort', v)}
+      />
+      <Check
         label={t('إظهار القسم الرئيسي')}
         value={s.home.showHero}
         onChange={(v) => home('showHero', v)}
@@ -1920,6 +1937,35 @@ function AppearanceSettings({
         onChange={(v) => home('showBenefits', v)}
       />
       {list('benefits', t('عبارات شريط المزايا'))}
+      <div className="editor-block wide license-card-settings">
+        <h3>{t('بطاقة تراخيص المنتجات')}</h3>
+        <Check
+          label={t('إظهار بطاقة التراخيص والشهادات')}
+          value={s.home.licenseCard.enabled}
+          onChange={(enabled) => home('licenseCard', { ...s.home.licenseCard, enabled })}
+        />
+        <p className="muted">
+          {t(
+            'فعّلها عندما تتوفر بيانات التسجيل أو الشهادات المطابقة لمنتجاتك. شعارات الهيئات لا تثبت الترخيص وحدها.',
+          )}
+        </p>
+        <Field
+          label={t('عنوان بطاقة التراخيص')}
+          value={s.home.licenseCard.title}
+          onChange={(title) => home('licenseCard', { ...s.home.licenseCard, title })}
+        />
+        <Field
+          label={t('وصف بطاقة التراخيص')}
+          type="textarea"
+          value={s.home.licenseCard.text}
+          onChange={(text) => home('licenseCard', { ...s.home.licenseCard, text })}
+        />
+        <Field
+          label={t('رابط التسجيل أو الشهادات (اختياري)')}
+          value={s.home.licenseCard.documentUrl}
+          onChange={(documentUrl) => home('licenseCard', { ...s.home.licenseCard, documentUrl })}
+        />
+      </div>
       <h2 className="wide">{t('قسم المنتجات')}</h2>
       {text('productsEyebrow', t('العبارة أعلى قائمة المنتجات'))}
       {text('productsTitle', t('عنوان قائمة المنتجات'))}
@@ -2340,13 +2386,33 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
       return next;
     });
   };
+  const automaticForm: Block | null =
+    draft && !draft.blocks.some((b) => b.type === 'ORDER_FORM')
+      ? {
+          id: 'auto-form-' + draft.id,
+          type: 'ORDER_FORM',
+          order: draft.blocks.length,
+          enabled: true,
+          settings: {
+            codBadgeText: landingBadgeText(
+              { ...draft, pageMode: 'landing' },
+              {},
+              landingUISettings,
+            ),
+          },
+        }
+      : null;
   const blockPatch = (id: string, change: Partial<Block>) =>
     patch(
       'blocks',
-      draft!.blocks.map((b) => (b.id === id ? { ...b, ...change } : b)),
+      draft!.blocks.some((b) => b.id === id)
+        ? draft!.blocks.map((b) => (b.id === id ? { ...b, ...change } : b))
+        : automaticForm?.id === id
+          ? [...draft!.blocks, { ...automaticForm, ...change }]
+          : draft!.blocks,
     );
   const blockSettings = (id: string, key: string, value: unknown) => {
-    const b = draft!.blocks.find((b) => b.id === id)!;
+    const b = draft!.blocks.find((b) => b.id === id) || automaticForm!;
     blockPatch(id, { settings: { ...b.settings, [key]: value } });
   };
   const reorder = (from: string, to: string) => {
@@ -3412,36 +3478,6 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 )}
               </p>
             </details>
-            <div className="product-presentation-links landing-cod-badge-settings">
-              <strong>{t('شارة الدفع أعلى الاستمارة')}</strong>
-              <Check
-                label={t('إظهار شارة الدفع أعلى استمارة الهبوط')}
-                value={draft.presentation?.landingCodBadge?.visible !== false}
-                onChange={(visible) =>
-                  patch('presentation', {
-                    ...draft.presentation,
-                    landingCodBadge: { ...draft.presentation?.landingCodBadge, visible },
-                  })
-                }
-              />
-              <label>
-                {t('نص شارة الدفع')}
-                <input
-                  maxLength={150}
-                  value={draft.presentation?.landingCodBadge?.text ?? t('الدفع عند الاستلام ✓')}
-                  onChange={(e) =>
-                    patch('presentation', {
-                      ...draft.presentation,
-                      landingCodBadge: {
-                        ...draft.presentation?.landingCodBadge,
-                        text: e.target.value,
-                      },
-                    })
-                  }
-                />
-              </label>
-              <small>{t('تغيير هذه الشارة لا يغيّر طريقة الدفع أو نص زر تأكيد الطلب.')}</small>
-            </div>
             <div className="product-presentation-links landing-footer-settings">
               <strong>{t('التواصل أسفل صفحة الهبوط')}</strong>
               <Check
@@ -3535,18 +3571,25 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                   {t('استمارة الطلب مخفية. أظهرها ليتمكن زر الشراء من الانتقال إليها.')}
                 </p>
               )}
-            {draft.blocks.map((source, i) => {
+            {[...draft.blocks, ...(automaticForm ? [automaticForm] : [])].map((source, i) => {
               const b: Block = {
                 ...source,
                 settings:
                   source.type === 'ORDER_FORM'
-                    ? localizedForm(landingUISettings, source.settings)
+                    ? localizedForm(landingUISettings, {
+                        ...source.settings,
+                        codBadgeText: landingBadgeText(
+                          { ...draft, pageMode: 'landing' },
+                          source.settings,
+                          landingUISettings,
+                        ),
+                      })
                     : source.settings,
               };
               return (
                 <article
                   className="editor-block"
-                  draggable
+                  draggable={b.id !== automaticForm?.id}
                   key={b.id}
                   onDragStart={() => setDrag(b.id)}
                   onDragOver={(e) => e.preventDefault()}
@@ -3567,18 +3610,24 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                         value={b.enabled}
                         onChange={(v) => blockPatch(b.id, { enabled: v })}
                       />
-                      <button onClick={() => i > 0 && reorder(b.id, draft.blocks[i - 1].id)}>
+                      <button
+                        disabled={b.id === automaticForm?.id}
+                        onClick={() => i > 0 && reorder(b.id, draft.blocks[i - 1].id)}
+                      >
                         ↑
                       </button>
                       <button
                         onClick={() =>
-                          i < draft.blocks.length - 1 && reorder(b.id, draft.blocks[i + 1].id)
+                          b.id !== automaticForm?.id &&
+                          i < draft.blocks.length - 1 &&
+                          reorder(b.id, draft.blocks[i + 1].id)
                         }
                       >
                         ↓
                       </button>
                     </>
                     <button
+                      disabled={b.id === automaticForm?.id}
                       onClick={() =>
                         patch(
                           'blocks',
@@ -3698,6 +3747,13 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                           'الاسم والهاتف والمدينة والعنوان مطلوبة للتوصيل. يمكنك تعديل تسمياتها والنص داخل الخانات وإظهار الملاحظات أو إخفائها.',
                         )}
                       </p>
+                      <Field
+                        path={`blocks.${i}.settings.codBadgeText`}
+                        label={t('شارة الدفع أعلى الاستمارة')}
+                        value={b.settings.codBadgeText ?? productFormDefaults.codBadgeText}
+                        onChange={(v) => blockSettings(b.id, 'codBadgeText', v)}
+                      />
+                      <small className="muted">{t('اترك النص فارغًا لإخفاء الشارة.')}</small>
                       <Field
                         path={`blocks.${i}.settings.formTitle`}
                         label={t('عنوان الاستمارة')}

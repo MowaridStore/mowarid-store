@@ -1,4 +1,11 @@
-import { defaults, type LandingFormAppearance, type Product, type Settings } from './types';
+import { localizedForm } from './i18n';
+import {
+  defaults,
+  type FormContent,
+  type LandingFormAppearance,
+  type Product,
+  type Settings,
+} from './types';
 
 export const landingAppearanceLabels: Record<keyof LandingFormAppearance, string> = {
   background: 'خلفية منطقة الطلب',
@@ -31,4 +38,16 @@ export function landingFormAppearance(p: Product, s: Settings): LandingFormAppea
     buttonText: '#ffffff',
     ...p.presentation?.landingFormAppearance,
   };
+}
+
+/** Empty text hides the badge; retain settings saved by the previous editor. */
+export function landingBadgeText(p: Product | undefined, content: FormContent, s: Settings) {
+  const standard = localizedForm(s).codBadgeText;
+  if (p?.pageMode !== 'landing') return standard;
+  const value =
+    content.codBadgeText ??
+    (p.presentation?.landingCodBadge?.visible === false
+      ? ''
+      : (p.presentation?.landingCodBadge?.text ?? standard));
+  return localizedForm(s, { codBadgeText: value }).codBadgeText;
 }

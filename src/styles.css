@@ -6160,3 +6160,146 @@ td p {
   opacity: 0.6;
   cursor: default;
 }
+/* Checkbox text stays next to its control in every dashboard panel. */
+.admin-check,
+.product-presentation-links .admin-check,
+.settings-grid .admin-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block: 8px;
+  line-height: 1.6;
+}
+.admin-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+}
+.admin-check > span {
+  min-width: 0;
+}
+.product-presentation-links.landing-footer-settings {
+  margin-block: 12px;
+  padding: 12px 16px;
+}
+.landing-footer-settings p {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.storefront .benefits-strip {
+  padding-block: 20px;
+  gap: 14px;
+  border: 0;
+}
+.storefront .benefits-strip > span {
+  min-height: 92px;
+  padding: 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+  gap: 12px;
+}
+.storefront .benefits-strip svg {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.license-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0 32px 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.license-logos {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+.license-logos img {
+  width: 150px;
+  height: 80px;
+  object-fit: contain;
+}
+.license-card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.license-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+  font-size: 14px;
+}
+.license-card a {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 14px;
+  text-decoration: underline;
+}
+@media (max-width: 700px) {
+  .storefront .benefits-strip {
+    padding-block: 16px;
+    gap: 10px;
+  }
+  .storefront .benefits-strip > span {
+    font-size: 14px;
+    min-height: 104px;
+    padding: 14px 10px;
+    gap: 8px;
+  }
+  .storefront .benefits-strip svg {
+    width: 26px;
+    height: 26px;
+  }
+  .license-card {
+    margin: 0 16px 20px;
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .license-logos {
+    justify-content: center;
+    gap: 20px;
+  }
+  .license-logos img {
+    width: 125px;
+    max-width: calc((100% - 20px) / 2);
+    min-width: 0;
+    height: 70px;
+  }
+}
+
+.price-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  font-size: 14px;
+}
+.price-sort select {
+  max-width: 100%;
+  width: auto;
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .section-heading:has(.price-sort) {
+    flex-wrap: wrap;
+  }
+  .price-sort {
+    order: 2;
+    width: 100%;
+    margin-inline-start: 0;
+  }
+}

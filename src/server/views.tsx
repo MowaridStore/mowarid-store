@@ -1,11 +1,12 @@
 /** @jsxImportSource hono/jsx */
+import { productSort, sortedProducts } from '../shared/product-sort';
 import { pricedProduct, promotionClock, promotionRemaining, tailPricing } from '../shared/commerce';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import { safeProductHtml } from './product-content';
 import { policyKeys, policyLabels, policyVisible } from '../shared/policies';
 import { policyHtml } from './policy-content';
-import { landingFormAppearance } from '../shared/landing-appearance';
+import { landingFormAppearance, landingBadgeText } from '../shared/landing-appearance';
 declare const __STYLE_VERSION__: string;
 declare const __STORE_VERSION__: string;
 import { landingProducts, landingPackSavings } from '../shared/landing-products';
@@ -127,6 +128,7 @@ export function Layout({
     trackingEnabled: s.trackingEnabled,
     turnstileSiteKey: s.turnstileSiteKey,
     attributionDays: s.attributionDays,
+    showPriceSort: s.home.showPriceSort !== false,
   };
   const data = {
     settings: publicSettings,
@@ -567,12 +569,14 @@ export function Home({
   products,
   categories = [],
   selectedCategory = '',
+  sort = '',
   searchIds,
 }: {
   s: Settings;
   products: Product[];
   categories?: Category[];
   selectedCategory?: string;
+  sort?: string;
   searchIds?: string[];
 }) {
   s = storefrontSettings(s);
@@ -580,6 +584,8 @@ export function Home({
     money = localizedMoney(s);
 
   const selected = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
+  const selectedSort = productSort(sort, s.home.showPriceSort !== false);
+  const ordered = sortedProducts(products, selectedSort, (p) => pricedProduct(p).price, searchIds);
   return (
     <main class="shop-home">
       {s.home.showHero && (
@@ -638,13 +644,33 @@ export function Home({
       )}
       {s.home.showBenefits && (
         <div class="benefits-strip">
-          {s.home.benefits.map((text, i) => (
-            <span>
-              <Icon name={['shield', 'truck', 'bag', 'phone'][i % 4]} size={20} />
-              {text.replace(/^[◈♧✓♡]\s*/, '')}
-            </span>
-          ))}
+          {s.home.benefits.map(
+            (text, i) =>
+              text.trim() && (
+                <span>
+                  <Icon name={['shield', 'truck', 'bag', 'phone'][i % 4]} size={28} />
+                  {text.replace(/^[◈♧✓♡]\s*/, '')}
+                </span>
+              ),
+          )}
         </div>
+      )}
+      {s.home.licenseCard.enabled && (
+        <section class="license-card" aria-label={s.home.licenseCard.title}>
+          <div class="license-logos">
+            <img src="/trust/onssa.png" alt="ONSSA" width="160" height="74" loading="lazy" />
+            <img src="/trust/ammps.png" alt="AMMPS" width="160" height="98" loading="lazy" />
+          </div>
+          <div>
+            {s.home.licenseCard.title && <h2>{s.home.licenseCard.title}</h2>}
+            {s.home.licenseCard.text && <p>{s.home.licenseCard.text}</p>}
+            {s.home.licenseCard.documentUrl && (
+              <a href={s.home.licenseCard.documentUrl} target="_blank" rel="noopener noreferrer">
+                {t('عرض بيانات التسجيل والشهادات ↗')}
+              </a>
+            )}
+          </div>
+        </section>
       )}
       {!!categories.length && (
         <section class="categories-section" id="categories" aria-label={t('أقسام المنتجات')}>
@@ -687,6 +713,22 @@ export function Home({
             <span class="eyebrow">{s.home.productsEyebrow}</span>
             <h2>{s.home.productsTitle}</h2>
           </div>
+          {s.home.showPriceSort !== false && (
+            <label class="price-sort">
+              <span>{t('ترتيب المنتجات')}</span>
+              <select data-price-sort aria-label={t('ترتيب المنتجات')}>
+                <option value="" selected={selectedSort === ''}>
+                  {t('الترتيب الافتراضي')}
+                </option>
+                <option value="price-asc" selected={selectedSort === 'price-asc'}>
+                  {t('السعر: من الأقل إلى الأعلى')}
+                </option>
+                <option value="price-desc" selected={selectedSort === 'price-desc'}>
+                  {t('السعر: من الأعلى إلى الأقل')}
+                </option>
+              </select>
+            </label>
+          )}
           <span class="product-count" data-product-count>
             {products.length}
             {t('منتج')}
@@ -704,7 +746,7 @@ export function Home({
         ></p>
         <div class="product-grid">
           {products.length ? (
-            products.map((p, i) => (
+            ordered.map((p, i) => (
               <ProductCard
                 p={p}
                 s={s}
@@ -713,7 +755,7 @@ export function Home({
                   (!!selected && p.categoryId !== selected) ||
                   (searchIds !== undefined && !searchIds.includes(p.id))
                 }
-                rank={searchIds?.indexOf(p.id)}
+                rank={i}
               />
             ))
           ) : (
@@ -1143,7 +1185,7 @@ export function OrderForm({
   const appearance = p?.pageMode === 'landing' ? landingFormAppearance(p, s) : null;
   const alternatives = p?.pageMode === 'landing' ? landingProducts(p, choices) : [];
   const packSavings = p ? landingPackSavings(p, choices) : 0;
-  const badge = p?.pageMode === 'landing' ? p.presentation?.landingCodBadge : undefined;
+  const badgeText = landingBadgeText(p, content, s);
   return (
     <section
       id="order-form"
@@ -1189,9 +1231,7 @@ export function OrderForm({
               : t('إتمام طلبك')}
           </h2>
         </div>
-        {badge?.visible !== false && (
-          <span class="cod-badge">{badge?.text ?? t('الدفع عند الاستلام ✓')}</span>
-        )}
+        {badgeText.trim() && <span class="cod-badge">{badgeText}</span>}
       </div>
       {alternatives.length > 1 && (
         <fieldset class="landing-product-choices" data-landing-products>

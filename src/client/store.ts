@@ -1,3 +1,4 @@
+import { productSort, sortedProducts } from '../shared/product-sort';
 import {
   cartOffers,
   bundleChoices,
@@ -19,6 +20,7 @@ import { addToCart, checkoutIntent } from '../shared/domain';
 type Config = {
   settings: {
     attributionDays: number;
+    showPriceSort: boolean;
     storeLanguage: Language;
     storeLanguages: Language[];
     copy: Record<string, string>;
@@ -168,6 +170,10 @@ document.querySelectorAll<HTMLSelectElement>('[data-store-language]').forEach((s
   }),
 );
 let selectedCategory = new URL(location.href).searchParams.get('category') || '';
+let selectedSort = productSort(
+  new URL(location.href).searchParams.get('sort'),
+  config.settings.showPriceSort !== false,
+);
 let searchTerm = new URL(location.href).searchParams.get('q') || '';
 let searchIds: string[] | null = config.searchIds ?? null;
 let searchSerial = 0;
@@ -441,6 +447,28 @@ function render() {
     el.style.order =
       searchTerm.trim() && searchIds ? String(ranked.get(el.dataset.productCard!) ?? -1) : '';
   });
+  const grid = document.querySelector<HTMLElement>('.shop-home .product-grid');
+  if (grid) {
+    const ordered = sortedProducts(
+      config.products,
+      selectedSort,
+      (p) => p.price,
+      searchTerm.trim() ? (searchIds ?? undefined) : undefined,
+    );
+    const cards = new Map(
+      [...grid.querySelectorAll<HTMLElement>('[data-product-card]')].map((card) => [
+        card.dataset.productCard!,
+        card,
+      ]),
+    );
+    ordered.forEach((p) => {
+      const card = cards.get(p.id);
+      if (card) {
+        card.style.order = '';
+        grid.append(card);
+      }
+    });
+  }
   document.querySelectorAll<HTMLElement>('[data-category]').forEach((el) => {
     const category = el.dataset.category || '';
     el.hidden =
@@ -1453,7 +1481,21 @@ document.querySelectorAll<HTMLAnchorElement>('[data-category]').forEach((el) =>
     $('#products')?.scrollIntoView({ behavior: 'smooth' });
   }),
 );
+const priceSort = document.querySelector<HTMLSelectElement>('[data-price-sort]');
+priceSort?.addEventListener('change', () => {
+  selectedSort = productSort(priceSort.value, config.settings.showPriceSort !== false);
+  const url = new URL(location.href);
+  if (selectedSort) url.searchParams.set('sort', selectedSort);
+  else url.searchParams.delete('sort');
+  history.pushState({}, '', url);
+  render();
+});
 window.addEventListener('popstate', () => {
+  selectedSort = productSort(
+    new URL(location.href).searchParams.get('sort'),
+    config.settings.showPriceSort !== false,
+  );
+  if (priceSort) priceSort.value = selectedSort;
   const nextTerm = new URL(location.href).searchParams.get('q') || '';
   if (nextTerm !== searchTerm) {
     searchTerm = nextTerm;

@@ -1546,5 +1546,61 @@
   "توفير {amount} مقارنة بشراء المكونات منفصلة": {
     "en": "Save {amount} compared with buying the components separately",
     "fr": "Économisez {amount} par rapport aux composants achetés séparément"
+  },
+  "بطاقة تراخيص المنتجات": {
+    "en": "Product registration card",
+    "fr": "Carte d’enregistrement des produits"
+  },
+  "إظهار بطاقة التراخيص والشهادات": {
+    "en": "Show the registration and certificates card",
+    "fr": "Afficher la carte d’enregistrement et de certificats"
+  },
+  "فعّلها عندما تتوفر بيانات التسجيل أو الشهادات المطابقة لمنتجاتك. شعارات الهيئات لا تثبت الترخيص وحدها.": {
+    "en": "Enable it when you have registration details or certificates matching your products. Authority logos alone do not establish registration.",
+    "fr": "Activez-la lorsque vous disposez d’enregistrements ou de certificats correspondant à vos produits. Les logos des autorités ne prouvent pas l’enregistrement à eux seuls."
+  },
+  "عنوان بطاقة التراخيص": {
+    "en": "Registration card title",
+    "fr": "Titre de la carte d’enregistrement"
+  },
+  "وصف بطاقة التراخيص": {
+    "en": "Registration card description",
+    "fr": "Description de la carte d’enregistrement"
+  },
+  "رابط التسجيل أو الشهادات (اختياري)": {
+    "en": "Registration or certificates link (optional)",
+    "fr": "Lien d’enregistrement ou de certificats (facultatif)"
+  },
+  "اترك النص فارغًا لإخفاء الشارة.": {
+    "en": "Leave the text empty to hide the badge.",
+    "fr": "Laissez le texte vide pour masquer le badge."
+  },
+  "عرض بيانات التسجيل والشهادات ↗": {
+    "en": "View registrations and certificates ↗",
+    "fr": "Voir les enregistrements et certificats ↗"
+  },
+  "معلومات تراخيص المنتجات": {
+    "en": "Product registration information",
+    "fr": "Informations d’enregistrement des produits"
+  },
+  "بيانات التسجيل والشهادات الخاصة بالمنتجات.": {
+    "en": "Product registration details and certificates.",
+    "fr": "Détails d’enregistrement et certificats des produits."
+  },
+  "ترتيب المنتجات": {
+    "en": "Sort products",
+    "fr": "Trier les produits"
+  },
+  "الترتيب الافتراضي": {
+    "en": "Default order",
+    "fr": "Ordre par défaut"
+  },
+  "السعر: من الأقل إلى الأعلى": {
+    "en": "Price: low to high",
+    "fr": "Prix : croissant"
+  },
+  "السعر: من الأعلى إلى الأقل": {
+    "en": "Price: high to low",
+    "fr": "Prix : décroissant"
   }
 }

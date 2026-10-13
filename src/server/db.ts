@@ -67,7 +67,11 @@ export async function settings(db: D1Database): Promise<Settings> {
       storeLanguage: saved.storeLanguage || defaults.storeLanguage,
       storeLanguages: saved.storeLanguages,
     }),
-    home: { ...defaults.home, ...saved.home },
+    home: {
+      ...defaults.home,
+      ...saved.home,
+      licenseCard: { ...defaults.home.licenseCard, ...saved.home?.licenseCard },
+    },
     theme: { ...defaults.theme, ...saved.theme },
     socials: { ...defaults.socials, ...saved.socials },
     policyVisibility: { ...defaults.policyVisibility, ...saved.policyVisibility },
