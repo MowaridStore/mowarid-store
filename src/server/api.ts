@@ -53,6 +53,7 @@ import {
 } from '../shared/order-status';
 import { META_GRAPH_VERSION } from './meta';
 import { storeIdentity } from './store-identity';
+import { campaignOriginAllowed, storeOriginProof } from './campaign-origin';
 import {
   normalizeProductContent,
   safeProductHtml,
@@ -214,6 +215,12 @@ api.post('/webhooks/mowarid', async (c) => {
   const result = await receiveWebhook(c.env, new Uint8Array(body), signature);
   c.executionCtx.waitUntil(processWebhooks(c.env));
   return c.json(result);
+});
+// A public, nonce-bound attestation of the hostname actually serving this store.
+// Signing a caller-supplied origin would allow an unrelated host to relay proofs.
+api.get('/store-origin-proof', async (c) => {
+  const challenge = z.string().uuid().parse(c.req.query('challenge'));
+  return c.text(await storeOriginProof(c.env, new URL(c.req.url).origin, challenge));
 });
 api.get('/auth/status', async (c) => {
   const a = await c.env.DB.prepare('SELECT id FROM admins LIMIT 1').first();
@@ -2008,7 +2015,6 @@ api.post('/admin/campaign-links', async (c) => {
   try {
     url = new URL(b.target, origin);
     if (
-      url.origin !== origin ||
       url.username ||
       url.password ||
       !['https:', 'http:'].includes(url.protocol) ||
@@ -2018,6 +2024,8 @@ api.post('/admin/campaign-links', async (c) => {
   } catch {
     throw new DomainError('invalid_campaign_link', 'اختر رابطًا من متجرك.');
   }
+  if (!(await campaignOriginAllowed(c.env, c.req.url, url)))
+    throw new DomainError('invalid_campaign_link', 'اختر رابطًا من متجرك.');
   url.searchParams.delete('utm_source');
   url.searchParams.delete('utm_campaign');
   const target = url.href;

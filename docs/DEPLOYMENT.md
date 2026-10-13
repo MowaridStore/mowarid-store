@@ -28,6 +28,8 @@
 
 كل مشروع يحافظ على نطاقه `.workers.dev`. لإضافة دومين تملكه، استخدم Workers & Pages → مشروعك → Settings → Domains & Routes → Custom Domain بعد ربط النطاق بـ Cloudflare. أضف النطاق إلى Turnstile واضبط `APP_ORIGIN` إن كنت تستخدم نطاقًا أساسيًا ثابتًا. إضافة دومين لا تحتاج إنشاء قاعدة جديدة.
 
+روابط الحملات تقبل الدومين المربوط تلقائيًا بعد التحقق من نفس نسخة المتجر، دون تغيير `APP_ORIGIN` لهذا الغرض. احتفظ بعلم التوافق `global_fetch_strictly_public` في إعدادات Worker لتمرير التحقق عبر الدومين العام وفق [توثيق Cloudflare](https://developers.cloudflare.com/workers/runtime-apis/fetch/).
+
 ## النشر اليدوي للمطور
 
 ```sh

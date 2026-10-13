@@ -121,7 +121,22 @@ beforeAll(async () => {
       compatibilityDate: '2025-09-01',
       d1Databases: ['DB', 'RESTORE'],
       r2Buckets: ['MEDIA', 'BACKUPS'],
+      outboundService: async (request) => {
+        const url = new URL(request.url);
+        if (url.pathname === '/api/store-origin-proof')
+          return url.origin === 'https://shop.example.test'
+            ? mf.dispatchFetch(request)
+            : new Response('Unrelated site', { status: 404 });
+        return fetch(request.url, {
+          method: request.method,
+          headers: Object.fromEntries(request.headers),
+          ...(request.method !== 'GET' && request.method !== 'HEAD'
+            ? { body: await request.arrayBuffer() }
+            : {}),
+        });
+      },
       bindings: {
+        APP_ORIGIN: 'http://store.test',
         ENVIRONMENT: 'development',
         MEDIA_ORIGIN: 'http://store.test/media',
         ENCRYPTION_KEY: btoa('a'.repeat(32)),
@@ -646,6 +661,57 @@ describe('real Worker runtime and D1 transactions', () => {
         (r) => r.id === saved.id,
       ),
     ).toBe(false);
+  });
+  it('creates custom-domain campaign links from the canonical admin, without changing the destination hostname', async () => {
+    const target = 'https://shop.example.test/offers/demo-bag?lang=fr';
+    const campaign = 'GlutaPack (Demo) - Lead - AD V1';
+    const response = await req(
+      '/admin/campaign-links',
+      { target, source: 'facebook', campaign },
+      true,
+    );
+    expect(response.status).toBe(201);
+    const saved = (await response.json()) as any;
+    const url = new URL(saved.url);
+    expect(url.origin).toBe('https://shop.example.test');
+    expect(url.pathname).toBe('/offers/demo-bag');
+    expect(url.searchParams.get('lang')).toBe('fr');
+    expect(url.searchParams.get('utm_source')).toBe('facebook');
+    expect(url.searchParams.get('utm_campaign')).toBe(campaign);
+    expect(saved.target).toBe(target);
+    const repeated = await req(
+      '/admin/campaign-links',
+      { target, source: 'facebook', campaign },
+      true,
+    );
+    expect(((await repeated.json()) as any).id).toBe(saved.id);
+    // The same store can generate canonical links while administering the alias.
+    const fromAlias = await mf.dispatchFetch('https://shop.example.test/api/admin/campaign-links', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://shop.example.test',
+        Cookie: cookie,
+        'X-CSRF-Token': csrf,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ target: origin + '/shop/demo-bag', source: 'facebook', campaign }),
+    });
+    expect(fromAlias.status).toBe(201);
+    const aliasSaved = (await fromAlias.json()) as any;
+    expect(new URL(aliasSaved.url).origin).toBe(origin);
+    const challenge = crypto.randomUUID();
+    const proof = await mf.dispatchFetch(
+      'https://shop.example.test/api/store-origin-proof?challenge=' + challenge,
+    );
+    expect(proof.status).toBe(200);
+    expect(proof.headers.get('Cache-Control')).toBe('no-store');
+    const canonicalProof = await req('/store-origin-proof?challenge=' + challenge);
+    expect(await proof.text()).not.toBe(await canonicalProof.text());
+    expect((await req('/store-origin-proof?challenge=invalid')).status).toBe(400);
+    for (const id of [saved.id, aliasSaved.id])
+      expect((await req('/admin/campaign-links/' + id, undefined, true, 'DELETE')).status).toBe(
+        200,
+      );
   });
   it('secret and backup encryption round trip and reject tampering', async () => {
     const payload = JSON.stringify({ ref: savedRef, catalog: 'كتالوج'.repeat(60000) });

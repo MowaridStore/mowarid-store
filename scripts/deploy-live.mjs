@@ -200,7 +200,7 @@ async function main() {
     account_id: account.id,
     main: resolve(root, 'worker/index.js'),
     compatibility_date: '2026-10-01',
-    compatibility_flags: ['nodejs_compat'],
+    compatibility_flags: ['nodejs_compat', 'global_fetch_strictly_public'],
     workers_dev: true,
     assets: {
       directory: resolve(root, 'dist'),
