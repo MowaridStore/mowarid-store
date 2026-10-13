@@ -174,14 +174,18 @@ export function localizedForm(
   const overrides = Object.fromEntries(
     Object.entries(content).map(([key, value]) => [
       key,
-      typeof value === 'string' &&
-      typeof (formDefaults as Record<string, unknown>)[key] === 'string' &&
-      languages.some(
-        (language) =>
-          value === translator(language)((formDefaults as Record<string, unknown>)[key] as string),
-      )
-        ? t((formDefaults as Record<string, unknown>)[key] as string)
-        : value,
+      key === 'formSubtitle' &&
+      languages.some((language) => value === translator(language)('خطوة واحدة تفصلك عن طلبك'))
+        ? ''
+        : typeof value === 'string' &&
+            typeof (formDefaults as Record<string, unknown>)[key] === 'string' &&
+            languages.some(
+              (language) =>
+                value ===
+                translator(language)((formDefaults as Record<string, unknown>)[key] as string),
+            )
+          ? t((formDefaults as Record<string, unknown>)[key] as string)
+          : value,
     ]),
   );
   return { ...builtins, ...overrides } as typeof formDefaults;

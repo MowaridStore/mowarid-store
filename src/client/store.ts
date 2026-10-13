@@ -487,11 +487,6 @@ function render() {
     $('#product-filter-empty')!.hidden =
       !document.querySelector('[data-product-card]') ||
       [...document.querySelectorAll<HTMLElement>('[data-product-card]')].some((el) => !el.hidden);
-  const notice = $('#supplier-notice');
-  if (notice)
-    notice.textContent = cart.length
-      ? t('نعرض المنتجات المتوافقة مع سلّتك · أفرغ السلة لتصفح الجميع')
-      : t('تصفح جميع المنتجات');
   const html = cart.length
     ? linesHtml(cart)
     : `<div class="empty-state"><span>♧</span><h3>${escape(t('السلة تنتظر اختياراتك'))}</h3><a href="/#products">${escape(t('اكتشف المنتجات ←'))}</a></div>`;

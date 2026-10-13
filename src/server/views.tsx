@@ -209,8 +209,8 @@ export function Layout({
         }
         style={{
           ...typographyStyle(s),
-          '--logo-width': (s.branding?.logoWidth || 112) + 'px',
-          '--logo-zoom': String(s.branding?.logoZoom || 1),
+          '--logo-width': (s.branding?.logoWidth || defaults.branding.logoWidth) + 'px',
+          '--logo-zoom': String(s.branding?.logoZoom || defaults.branding.logoZoom),
           '--green': s.theme.primary,
           '--page': s.theme.background,
           '--surface': s.theme.surface,
@@ -688,7 +688,6 @@ export function Home({
       )}
       {!!categories.length && (
         <section class="categories-section" id="categories" aria-label={t('أقسام المنتجات')}>
-          <h2>{t('تسوق حسب القسم')}</h2>
           <nav class="category-list" aria-label={t('اختر قسم المنتجات')}>
             <a
               class="category-link"
@@ -729,7 +728,6 @@ export function Home({
           </div>
           {s.home.showPriceSort !== false && (
             <label class="price-sort">
-              <span>{t('ترتيب المنتجات')}</span>
               <select data-price-sort aria-label={t('ترتيب المنتجات')}>
                 <option value="" selected={selectedSort === ''}>
                   {t('الترتيب الافتراضي')}
@@ -748,9 +746,6 @@ export function Home({
             {t('منتج')}
           </span>
         </div>
-        <p class="muted supplier-notice" id="supplier-notice">
-          {t('تصفح جميع المنتجات')}
-        </p>
         <p
           class="search-status muted"
           id="search-status"
@@ -996,10 +991,7 @@ export function ProductPage({
         </div>
         <div class="product-purchase">
           <div class="product-heading">
-            <span class="availability">
-              <span></span>
-              {available ? t('متاح للطلب') : t('غير متاح حاليًا')}
-            </span>
+            {!available && <span class="availability">{t('غير متاح حاليًا')}</span>}
             <button type="button" class="text-button" data-share-product>
               {t('مشاركة ↗')}
             </button>
@@ -1235,7 +1227,7 @@ export function OrderForm({
       )}
       <div class="section-heading">
         <div>
-          <span class="eyebrow">{f.formSubtitle}</span>
+          {f.formSubtitle.trim() && <span class="eyebrow">{f.formSubtitle}</span>}
           <h2>
             {p
               ? (content.formTitle ?? (!direct && p.offers.length ? f.formTitle : t('أكمل طلبك')))
@@ -1392,7 +1384,7 @@ export function OrderForm({
               <Icon name="truck" />
               <span>
                 <b>{t('التوصيل إلى عنوانك')}</b>
-                <small>{t('يُحسب حسب المدينة · رسم واحد للطلب')}</small>
+                <small>{t('سيتواصل معك رجل التوصيل')}</small>
               </span>
               <strong data-delivery-price>—</strong>
             </div>
@@ -1420,7 +1412,7 @@ export function OrderForm({
             {f.submitText || formDefault.submitText}
           </button>
           {(policyVisible(s, 'terms') || policyVisible(s, 'privacy')) && (
-            <p class="muted">
+            <p class="muted checkout-consent">
               {t('بالإرسال توافق على')}{' '}
               {policyVisible(s, 'terms') && <a href={policyHref('terms', p)}>{t('الشروط')}</a>}
               {policyVisible(s, 'terms') && policyVisible(s, 'privacy') && <> {t('و')} </>}
@@ -1462,11 +1454,7 @@ export function OrderForm({
                 <br />
                 {t('✓ ادفع عندما يصل طلبك')}
               </div>
-              {p ? (
-                p.pageMode !== 'landing' && (
-                  <p class="muted">{t('هذا طلب مستقل للعرض المختار. سلتك السابقة تبقى محفوظة.')}</p>
-                )
-              ) : (
+              {!p && (
                 <button class="secondary" data-open-cart>
                   {t('تعديل السلة')}
                 </button>

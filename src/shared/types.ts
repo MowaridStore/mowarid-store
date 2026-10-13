@@ -75,7 +75,7 @@ export type FormContent = {
 export const formDefaults = {
   codBadgeText: 'الدفع عند الاستلام ✓',
   formTitle: 'اختر عرضك وأكمل طلبك',
-  formSubtitle: 'خطوة واحدة تفصلك عن طلبك',
+  formSubtitle: '',
   submitText: 'تأكيد الطلب · الدفع عند الاستلام ←',
   nameLabel: 'الاسم الكامل',
   namePlaceholder: 'الاسم والنسب',
@@ -440,8 +440,8 @@ export const defaults: Settings = {
     accent: '#eac79d',
     line: '#dedfd6',
   },
-  branding: { logoWidth: 112, logoZoom: 1, showName: true },
-  typography: { family: 'plex', desktopSize: 16, mobileSize: 17, weight: 500 },
+  branding: { logoWidth: 150, logoZoom: 3, showName: false },
+  typography: { family: 'plex', desktopSize: 16, mobileSize: 16, weight: 500 },
   productInfo: {
     showDeliveryReturns: true,
     deliveryReturnsTitle: 'التوصيل والاسترجاع',

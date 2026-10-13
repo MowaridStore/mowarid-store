@@ -6455,7 +6455,7 @@ bdi[dir='ltr'] {
 }
 .storefront:not(.focused-landing) .brand-logo {
   display: block;
-  width: var(--logo-width, 112px);
+  width: var(--logo-width, 150px);
   max-width: 100%;
   height: 56px;
   overflow: hidden;
@@ -6465,7 +6465,7 @@ bdi[dir='ltr'] {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transform: scale(var(--logo-zoom, 1));
+  transform: scale(var(--logo-zoom, 3));
   transform-origin: center;
 }
 .storefront:not(.focused-landing) .brand-copy strong {
@@ -6563,10 +6563,10 @@ bdi[dir='ltr'] {
 }
 @media (max-width: 700px) {
   .storefront:not(.focused-landing) {
-    --reading-size: var(--store-mobile-size, 17px);
+    --reading-size: var(--store-mobile-size, 16px);
   }
   .storefront:not(.focused-landing) .brand-logo {
-    width: min(var(--logo-width, 112px), 160px);
+    width: min(var(--logo-width, 150px), 160px);
     height: 48px;
   }
   .storefront:not(.focused-landing) .brand.logo-wordmark .brand-copy {
@@ -6619,4 +6619,10 @@ bdi[dir='ltr'] {
     align-items: flex-end;
     gap: 6px;
   }
+}
+
+.storefront #checkout-form > p.checkout-consent {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
 }

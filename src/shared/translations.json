@@ -5462,5 +5462,9 @@
   "عادي": {
     "en": "Regular",
     "fr": "Normal"
+  },
+  "سيتواصل معك رجل التوصيل": {
+    "en": "The delivery driver will contact you.",
+    "fr": "Le livreur vous contactera."
   }
 }

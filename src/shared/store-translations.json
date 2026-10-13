@@ -1726,5 +1726,9 @@
   "إعادة حساب الإجمالي": {
     "en": "Recalculate total",
     "fr": "Recalculer le total"
+  },
+  "سيتواصل معك رجل التوصيل": {
+    "en": "The delivery driver will contact you.",
+    "fr": "Le livreur vous contactera."
   }
 }

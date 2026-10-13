@@ -40,6 +40,12 @@ describe('independent dashboard and storefront languages', () => {
     expect(localized.brand).toBe(defaults.brand);
     expect(localizedForm(s).nameLabel).toBe('Nom complet');
     expect(localizedForm(s).cityLabel).toBe('Ville');
+    for (const language of ['ar', 'fr', 'en'] as const)
+      expect(
+        localizedForm(s, { formSubtitle: translator(language)('خطوة واحدة تفصلك عن طلبك') })
+          .formSubtitle,
+      ).toBe('');
+    expect(localizedForm(s, { formSubtitle: 'Votre routine' }).formSubtitle).toBe('Votre routine');
     expect(translator('fr')('إغلاق')).toBe('Fermer');
     expect(localizedForm(s, { nameLabel: 'الاسم الكامل' }).nameLabel).toBe('Nom complet');
     expect(localizedForm(s, { nameLabel: 'Votre prénom' }).nameLabel).toBe('Votre prénom');

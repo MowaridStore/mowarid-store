@@ -109,10 +109,7 @@ test('larger benefit cards and the optional authority card save and hide without
     await expect(page.locator('.license-card')).toHaveCount(0);
     for (const width of [1440, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
-      await expect(page.locator('.benefits-strip > span').first()).toHaveCSS(
-        'font-size',
-        width <= 700 ? '17px' : '16px',
-      );
+      await expect(page.locator('.benefits-strip > span').first()).toHaveCSS('font-size', '16px');
       const card = await page.locator('.benefits-strip > span').first().boundingBox();
       expect(card!.height).toBeGreaterThanOrEqual(90);
     }
@@ -195,6 +192,9 @@ test('price sorting stays with category, search, reload and history, and the mer
         ).ok(),
       ).toBe(true);
     await page.goto('/');
+    await expect(
+      page.locator('.price-sort > span, #supplier-notice, .categories-section h2'),
+    ).toHaveCount(0);
     await page.getByLabel('ترتيب المنتجات', { exact: true }).selectOption('price-asc');
     expect(await prices()).toEqual([...(await prices())].sort((a, b) => a - b));
     await page.locator('[data-category="' + category.id + '"]').click();

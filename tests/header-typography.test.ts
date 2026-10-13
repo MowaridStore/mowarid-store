@@ -45,7 +45,7 @@ it('Turnstile verifies the actual custom hostname and continues rejecting a diff
   ).rejects.toThrow();
 });
 it('font choices and sizes are bounded and defaults do not leak through translated settings', () => {
-  expect(typographyStyle(defaults)['--store-mobile-size']).toBe('17px');
+  expect(typographyStyle(defaults)['--store-mobile-size']).toBe('16px');
   for (const typography of [
     { ...defaults.typography, mobileSize: 12 },
     { ...defaults.typography, desktopSize: 99 },

@@ -79,9 +79,9 @@ test('compact appearance controls save a larger wordmark, global header toggle a
         '.checkout-method small',
         '.summary-row',
         '.summary-trust',
-        '#checkout-form > p.muted',
       ])
         await expect(page.locator(selector).first()).toHaveCSS('font-size', size);
+      await expect(page.locator('.checkout-consent')).toHaveCSS('font-size', '13px');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
