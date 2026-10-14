@@ -13,6 +13,7 @@ import {
   decryptSecret,
   saveCredential,
   startSession,
+  session as readAdminSession,
   digest,
 } from '../src/server/security';
 import type { Env } from '../src/server/db';
@@ -2467,6 +2468,60 @@ describe('real Worker runtime and D1 transactions', () => {
     );
     expect((await probe.request('/old-password', {}, env)).status).toBe(401);
     expect((await probe.request('/deleted-key', {}, env)).status).toBe(401);
+  });
+  it('does not revive a session revoked or expired between reading it and renewing it', async () => {
+    for (const change of ['revoke', 'expire']) {
+      const token = crypto.randomUUID(),
+        hash = await digest(token);
+      await env.DB.prepare('INSERT INTO sessions(hash,admin_id,csrf,expires_at) VALUES(?,?,?,?)')
+        .bind(hash, 'owner', 'renewal-race-csrf', Date.now() + 600000)
+        .run();
+      const raced = new Proxy(env.DB, {
+        get(db, key) {
+          if (key === 'prepare')
+            return (sql: string) => {
+              if (!sql.startsWith('UPDATE sessions SET expires_at')) return db.prepare(sql);
+              return {
+                bind: (...params: unknown[]) => ({
+                  first: async () => {
+                    if (change === 'revoke')
+                      await db.prepare('DELETE FROM sessions WHERE hash=?').bind(hash).run();
+                    else
+                      await db
+                        .prepare('UPDATE sessions SET expires_at=? WHERE hash=?')
+                        .bind(Date.now() - 1000, hash)
+                        .run();
+                    return db
+                      .prepare(sql)
+                      .bind(...params)
+                      .first();
+                  },
+                }),
+              };
+            };
+          const value = Reflect.get(db, key);
+          return typeof value === 'function' ? value.bind(db) : value;
+        },
+      });
+      const probe = new Hono<{ Bindings: Env }>();
+      probe.get('/probe', async (c) => c.json({ session: await readAdminSession(c) }));
+      try {
+        const response = await probe.request(
+          '/probe',
+          { headers: { Cookie: 'session=' + token } },
+          { ...env, DB: raced },
+        );
+        expect(await response.json()).toEqual({ session: null });
+        expect(response.headers.has('set-cookie')).toBe(false);
+        expect(
+          await env.DB.prepare('SELECT COUNT(*) count FROM sessions WHERE hash=? AND expires_at>?')
+            .bind(hash, Date.now())
+            .first('count'),
+        ).toBe(0);
+      } finally {
+        await env.DB.prepare('DELETE FROM sessions WHERE hash=?').bind(hash).run();
+      }
+    }
   });
   it('keeps a published unlisted product purchasable through both presentations and preserves its visibility in older editor updates', async () => {
     const original = ((await (await req('/admin/products', undefined, true)).json()) as any[]).find(

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { build } from 'esbuild';
 import { readFile, readdir } from 'node:fs/promises';
+import { digest } from '../src/server/security';
 
 let runtime: Miniflare;
 const origin = 'https://new-trainee-store.test';
@@ -239,4 +240,84 @@ it('keeps independent devices signed in, logs out only one device, and revokes a
   expect((await account(deviceA.cookie)).status).toBe(401);
   expect((await account(deviceC.cookie)).status).toBe(401);
   expect((await account(changed.headers.get('set-cookie')!.split(';')[0])).status).toBe(200);
+});
+
+it('persists login for 30 days, renews legacy sessions, and survives changing networks and concurrent requests', async () => {
+  const response = await post(
+    '/auth/login',
+    {
+      email: 'trainee@example.test',
+      password: 'Changed456',
+      turnstileToken: 'login-token',
+    },
+    '',
+    '198.18.92.1',
+  );
+  expect(response.status).toBe(200);
+  const header = response.headers.get('set-cookie')!;
+  expect(header).toContain('HttpOnly');
+  expect(header).toContain('Secure');
+  expect(header).toContain('SameSite=Strict');
+  expect(header).toContain('Expires=');
+  expect(Number(header.match(/Max-Age=(\d+)/)![1])).toBeGreaterThan(29 * 86400);
+  const cookie = header.split(';')[0];
+  const loginCsrf = ((await response.json()) as any).csrf;
+  const hash = await digest(decodeURIComponent(cookie.slice('session='.length)));
+  const db = await runtime.getD1Database('DB');
+  const get = (path: string, ip: string) =>
+    runtime.dispatchFetch(origin + '/api' + path, {
+      headers: { Cookie: cookie, Origin: origin, 'CF-Connecting-IP': ip },
+    });
+  // Existing unexpired eight-hour cookies upgrade automatically when used.
+  await db
+    .prepare('UPDATE sessions SET expires_at=? WHERE hash=?')
+    .bind(Date.now() + 8 * 3600000, hash)
+    .run();
+  const requests = await Promise.all([
+    get('/auth/status', '198.18.92.22'),
+    get('/auth/status', '2001:db8::33'),
+  ]);
+  for (const request of requests) {
+    expect(request.status).toBe(200);
+    expect(await request.json()).toMatchObject({ authenticated: true, csrf: loginCsrf });
+  }
+  const renewed = await db
+    .prepare('SELECT expires_at,csrf FROM sessions WHERE hash=?')
+    .bind(hash)
+    .first<{ expires_at: number; csrf: string }>();
+  expect(renewed!.expires_at - Date.now()).toBeGreaterThan(29 * 86400000);
+  expect(renewed!.csrf).toBe(loginCsrf);
+  expect(
+    await db.prepare('SELECT COUNT(*) count FROM sessions WHERE hash=?').bind(hash).first('count'),
+  ).toBe(1);
+  const cookieRenewal = requests.find((request) => request.headers.has('set-cookie'))!;
+  expect(cookieRenewal).toBeDefined();
+  expect(cookieRenewal.headers.get('set-cookie')!.split(';')[0]).toBe(cookie);
+  expect(
+    Number(cookieRenewal.headers.get('set-cookie')!.match(/Max-Age=(\d+)/)![1]),
+  ).toBeGreaterThan(29 * 86400);
+  const withinDay = await get('/admin/account', '198.18.92.44');
+  expect(withinDay.status).toBe(200);
+  expect(withinDay.headers.has('set-cookie')).toBe(false);
+  expect(
+    await db.prepare('SELECT expires_at FROM sessions WHERE hash=?').bind(hash).first('expires_at'),
+  ).toBe(renewed!.expires_at);
+  // After a day of use, renew once, keeping the same session and CSRF.
+  await db
+    .prepare('UPDATE sessions SET expires_at=? WHERE hash=?')
+    .bind(Date.now() + 28 * 86400000, hash)
+    .run();
+  const later = await get('/admin/account', '198.18.92.55');
+  expect(later.status).toBe(200);
+  expect(later.headers.has('set-cookie')).toBe(true);
+  // An already expired session must never be revived by activity.
+  await db
+    .prepare('UPDATE sessions SET expires_at=? WHERE hash=?')
+    .bind(Date.now() - 1000, hash)
+    .run();
+  const expired = await get('/auth/status', '198.18.92.66');
+  expect(await expired.json()).toMatchObject({ authenticated: false });
+  expect(expired.headers.has('set-cookie')).toBe(false);
+  expect((await get('/admin/account', '198.18.92.77')).status).toBe(401);
+  await db.prepare('DELETE FROM sessions WHERE hash=?').bind(hash).run();
 });

@@ -194,6 +194,19 @@ export async function turnstile(
   if (!data.success || data.action !== action || (host && data.hostname !== host))
     throw new DomainError('captcha_failed', 'لم ينجح التحقق الأمني. حاول مجددًا.');
 }
+const sessionLifetime = 30 * 24 * 3600000;
+const sessionRenewInterval = 24 * 3600000;
+type AdminSession = { admin_id: string; csrf: string; expires_at: number };
+function sessionCookie(c: Context, token: string, expiresAt: number) {
+  setCookie(c, 'session', token, {
+    httpOnly: true,
+    secure: (c.env as Env).ENVIRONMENT !== 'development',
+    sameSite: 'Strict',
+    path: '/',
+    maxAge: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)),
+    expires: new Date(expiresAt),
+  });
+}
 export async function startSession(
   c: Context,
   admin: string,
@@ -201,7 +214,8 @@ export async function startSession(
 ) {
   const env = c.env as Env,
     token = random(),
-    csrf = random();
+    csrf = random(),
+    expiresAt = Date.now() + sessionLifetime;
   if (!proof.password && !proof.passkey) throw new Error('Missing authentication proof');
   // Validate the proof in the same statement that creates the session. A reset
   // between password/passkey verification and this insert must not restore access.
@@ -211,7 +225,7 @@ export async function startSession(
     .bind(
       await digest(token),
       csrf,
-      Date.now() + 8 * 3600000,
+      expiresAt,
       admin,
       proof.password || '',
       proof.password || '',
@@ -221,23 +235,42 @@ export async function startSession(
     .run();
   if (!result.meta.changes)
     throw new DomainError('auth_changed', 'تغيرت بيانات الحساب أثناء الدخول. أعد المحاولة.', 401);
-  setCookie(c, 'session', token, {
-    httpOnly: true,
-    secure: env.ENVIRONMENT !== 'development',
-    sameSite: 'Strict',
-    path: '/',
-    maxAge: 28800,
-  });
+  sessionCookie(c, token, expiresAt);
   return csrf;
 }
 export async function session(c: Context) {
   const token = getCookie(c, 'session');
   if (!token) return null;
-  return (c.env as Env).DB.prepare(
-    'SELECT admin_id,csrf FROM sessions WHERE hash=? AND expires_at>?',
-  )
-    .bind(await digest(token), Date.now())
-    .first<{ admin_id: string; csrf: string }>();
+  const db = (c.env as Env).DB,
+    hash = await digest(token),
+    time = Date.now();
+  const read = () =>
+    db
+      .prepare('SELECT admin_id,csrf,expires_at FROM sessions WHERE hash=? AND expires_at>?')
+      .bind(hash, Date.now())
+      .first<AdminSession>();
+  let current = await read();
+  if (!current) return null;
+  if (current.expires_at <= time + sessionLifetime - sessionRenewInterval) {
+    // Renew existing valid sessions at most once per day. Never insert/upsert:
+    // a logout or password reset racing this request must not restore access.
+    current =
+      (await db
+        .prepare(
+          'UPDATE sessions SET expires_at=? WHERE hash=? AND expires_at>? AND expires_at<=? RETURNING admin_id,csrf,expires_at',
+        )
+        .bind(
+          time + sessionLifetime,
+          hash,
+          Date.now(),
+          time + sessionLifetime - sessionRenewInterval,
+        )
+        .first<AdminSession>()) || (await read());
+    // Another request may already have renewed it; a revoked/expired one stays invalid.
+    if (!current) return null;
+    sessionCookie(c, token, current.expires_at);
+  }
+  return { admin_id: current.admin_id, csrf: current.csrf };
 }
 export async function endSession(c: Context) {
   const token = getCookie(c, 'session');
