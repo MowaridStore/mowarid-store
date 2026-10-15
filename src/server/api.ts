@@ -55,6 +55,16 @@ import { META_GRAPH_VERSION } from './meta';
 import { storeIdentity } from './store-identity';
 import { campaignOriginAllowed, storeOriginProof } from './campaign-origin';
 import {
+  metaConfigured,
+  metaTicket,
+  validMetaTicket,
+  metaPageUrl,
+  metaEventStatement,
+  flushMetaEvents,
+  sendMetaEvent,
+  retryMetaEvents,
+} from './meta-events';
+import {
   normalizeProductContent,
   safeProductHtml,
   plainProductDescription,
@@ -241,6 +251,54 @@ api.get('/auth/status', async (c) => {
     logo: s.logo,
     storeOrigin: c.env.APP_ORIGIN || '',
   });
+});
+api.get('/meta/bootstrap', async (c) => {
+  await rate(c, 120, 60, 'meta_bootstrap');
+  const pixel = await metaConfigured(c.env);
+  return c.json(
+    pixel
+      ? { enabled: true, pixel, ticket: await metaTicket(c.env, c.req.url, pixel) }
+      : { enabled: false },
+  );
+});
+api.post('/meta/events', async (c) => {
+  await rate(c, 120, 60, 'meta_events');
+  const body = z
+    .object({
+      event: z.enum(['PageView', 'ViewContent', 'InitiateCheckout']),
+      eventId: z.string().uuid(),
+      pixel: z.string().regex(/^\d{5,30}$/),
+      ticket: z.string().max(100),
+      path: z.string().max(2000),
+      fbp: z.string().max(200).default(''),
+      fbc: z.string().max(500).default(''),
+    })
+    .strict()
+    .parse(await c.req.json());
+  const pixel = await metaConfigured(c.env);
+  if (!pixel) return c.json({ queued: false });
+  if (body.pixel !== pixel || !(await validMetaTicket(c.env, c.req.url, pixel, body.ticket)))
+    throw new DomainError('tracking_expired', 'أعد تحميل الصفحة لتحديث التتبع.', 403);
+  const event_source_url = metaPageUrl(c.req.url, body.path);
+  const result = await (
+    await metaEventStatement(c.env, pixel, {
+      event_name: body.event,
+      event_id: body.eventId,
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: 'website',
+      event_source_url,
+      user_data: {
+        client_user_agent: (c.req.header('User-Agent') || '').slice(0, 500),
+        ...(c.req.header('CF-Connecting-IP')
+          ? { client_ip_address: c.req.header('CF-Connecting-IP')! }
+          : {}),
+        ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(body.fbp) ? { fbp: body.fbp } : {}),
+        ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(body.fbc) ? { fbc: body.fbc } : {}),
+      },
+    })
+  ).run();
+  c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
+  return c.json({ queued: !!result.meta.changes }, 202);
 });
 api.post('/auth/bootstrap', async (c) => {
   await rate(c, 10, 900, 'bootstrap');
@@ -684,6 +742,35 @@ api.post('/orders', async (c) => {
         ]
       : []),
   ];
+  const metaPixel =
+    s.trackingEnabled && s.facebookPixel && (await credential(c.env, 'meta'))
+      ? s.facebookPixel
+      : '';
+  if (metaPixel) {
+    let source: string;
+    try {
+      source = metaPageUrl(c.req.url, b.matching.path || '/checkout');
+    } catch {
+      source = new URL(c.req.url).origin + '/checkout';
+    }
+    statements.push(
+      await metaEventStatement(c.env, metaPixel, {
+        event_name: 'Lead',
+        event_id: 'lead:' + ref,
+        event_time: Math.floor(Date.now() / 1000),
+        action_source: 'website',
+        event_source_url: source,
+        user_data: {
+          ph: [await digest('212' + customer.phone.slice(1))],
+          ...(matching.fbp ? { fbp: matching.fbp } : {}),
+          ...(matching.fbc ? { fbc: matching.fbc } : {}),
+          ...(matching.ip ? { client_ip_address: matching.ip } : {}),
+          ...(matching.agent ? { client_user_agent: matching.agent } : {}),
+        },
+        custom_data: { currency: 'MAD', value: q.total / 100 },
+      }),
+    );
+  }
   try {
     await c.env.DB.batch(statements);
   } catch (e) {
@@ -693,6 +780,7 @@ api.post('/orders', async (c) => {
     if (raced?.request_hash === requestHash) return c.json({ ref: raced.ref });
     throw e;
   }
+  if (metaPixel) c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
   if (s.autoConfirm) await dispatchSubmission(c.env, id);
   return c.json({ ref }, 201);
 });
@@ -969,6 +1057,11 @@ api.get('/admin/pixels/status', async (c) => {
     lastSuccess: string | null;
   }>();
   return c.json({
+    web: await c.env.DB.prepare(
+      "SELECT COUNT(CASE WHEN status='sent' THEN 1 END) sent,COUNT(CASE WHEN status IN ('pending','running') THEN 1 END) pending,COUNT(CASE WHEN status='failed' THEN 1 END) failed FROM meta_events WHERE pixel_id=?",
+    )
+      .bind(configured.facebookPixel)
+      .first(),
     delivered: row?.delivered || 0,
     eligible: row?.eligible || 0,
     sent: row?.sent || 0,
@@ -986,8 +1079,48 @@ api.get('/admin/pixels/status', async (c) => {
     errorCode: currentHealth?.errorCode || null,
   });
 });
+api.post('/admin/pixels/test', async (c) => {
+  await rate(c, 10, 60, 'meta_test');
+  const { testEventCode } = z
+    .object({ testEventCode: z.string().regex(/^TEST\d{3,20}$/) })
+    .parse(await c.req.json());
+  const pixel = await metaConfigured(c.env);
+  if (!pixel) throw new DomainError('meta_not_configured', 'احفظ معرّف البكسل ورمز CAPI أولًا.');
+  try {
+    return c.json(
+      await sendMetaEvent(
+        c.env,
+        pixel,
+        {
+          event_name: 'PageView',
+          event_id: 'test:' + crypto.randomUUID(),
+          event_time: Math.floor(Date.now() / 1000),
+          action_source: 'website',
+          event_source_url: new URL(c.req.url).origin + '/',
+          user_data: {
+            client_user_agent: (c.req.header('User-Agent') || '').slice(0, 500),
+            ...(c.req.header('CF-Connecting-IP')
+              ? { client_ip_address: c.req.header('CF-Connecting-IP')! }
+              : {}),
+          },
+        },
+        testEventCode,
+      ),
+    );
+  } catch (error) {
+    if (error instanceof RemoteError)
+      throw new DomainError(
+        error.code,
+        'لم تقبل Meta حدث الاختبار. راجع صلاحية رمز CAPI ومعرّف البكسل ورمز الاختبار.',
+        502,
+      );
+    throw error;
+  }
+});
 api.post('/admin/pixels/retry', async (c) => {
   await retryPurchaseEvents(c.env);
+  await retryMetaEvents(c.env);
+  c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
   return c.json({ ok: true });
 });
 api.patch('/admin/language', async (c) => {
@@ -1180,7 +1313,11 @@ api.put('/admin/credentials', async (c) => {
       );
     }
   }
-  if (b.meta) await retryPurchaseEvents(c.env);
+  if (b.meta) {
+    await retryPurchaseEvents(c.env);
+    await retryMetaEvents(c.env);
+    c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
+  }
   return c.json({ ok: true });
 });
 api.post('/admin/connection', async (c) => {

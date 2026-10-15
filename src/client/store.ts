@@ -1137,6 +1137,7 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
       idempotency: attempt.id,
       attribution: attribution(),
       matching: {
+        path: location.pathname,
         fbp: trackingEnabled ? cookie('_fbp') : '',
         fbc: trackingEnabled
           ? cookie('_fbc') ||
@@ -1236,8 +1237,43 @@ function script(src: string, onload?: () => void) {
 }
 let tracking = false,
   checkoutTracked = false;
+type MetaBootstrap = { enabled: boolean; pixel?: string; ticket?: string };
+let metaBootstrap: Promise<MetaBootstrap> | undefined;
+const trackingCookie = (key: string) =>
+  document.cookie
+    .split('; ')
+    .find((value) => value.startsWith(key + '='))
+    ?.slice(key.length + 1) || '';
+async function serverTrack(event: string, eventId: string) {
+  if (!['PageView', 'ViewContent', 'InitiateCheckout'].includes(event)) return;
+  const load = () => request<MetaBootstrap>('/api/meta/bootstrap');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const bootstrap = await (metaBootstrap ||= load());
+    if (!bootstrap.enabled || bootstrap.pixel !== config.settings.facebookPixel) return;
+    try {
+      await request('/api/meta/events', {
+        event,
+        eventId,
+        pixel: bootstrap.pixel,
+        ticket: bootstrap.ticket,
+        path: location.pathname,
+        fbp: trackingCookie('_fbp'),
+        fbc:
+          trackingCookie('_fbc') ||
+          (attribution().last?.fbclid
+            ? 'fb.1.' + attribution().last.timestamp + '.' + attribution().last.fbclid
+            : ''),
+      });
+      return;
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'tracking_expired' || attempt) throw error;
+      metaBootstrap = undefined;
+    }
+  }
+}
 function track(event: string, params: Record<string, unknown> = {}) {
   if (!tracking) return;
+  const eventId = typeof params.event_id === 'string' ? params.event_id : crypto.randomUUID();
   const w = window as any,
     p = config.products.find((p) => p.id === purchaseProductId()),
     data = {
@@ -1245,8 +1281,11 @@ function track(event: string, params: Record<string, unknown> = {}) {
       ...(p ? { content_ids: [p.sku], content_type: 'product', value: p.price / 100 } : {}),
       ...params,
     };
-  if (w.fbq)
-    w.fbq('track', event, data, params.event_id ? { eventID: params.event_id } : undefined);
+  if (w.fbq) w.fbq('track', event, data, { eventID: eventId });
+  if (config.settings.facebookPixel)
+    void serverTrack(event, eventId).catch(() => {
+      metaBootstrap = undefined;
+    });
   if (w.ttq)
     event === 'PageView'
       ? w.ttq.page()
@@ -1284,6 +1323,14 @@ function startTracking() {
   const w = window as any,
     s = config.settings;
   if (s.facebookPixel) {
+    if (!trackingCookie('_fbp'))
+      document.cookie =
+        '_fbp=fb.1.' +
+        Date.now() +
+        '.' +
+        crypto.getRandomValues(new Uint32Array(1))[0] +
+        '; Path=/; Max-Age=7776000; SameSite=Lax' +
+        (location.protocol === 'https:' ? '; Secure' : '');
     const f: any = function (...args: unknown[]) {
       f.callMethod ? f.callMethod(...args) : f.queue.push(args);
     };
@@ -1292,9 +1339,11 @@ function startTracking() {
     w._fbq ||= f;
     f.loaded = true;
     f.version = '2.0';
-    w.fbq = f;
-    f('init', s.facebookPixel);
-    script('https://connect.facebook.net/en_US/fbevents.js');
+    if (!w.fbq) {
+      w.fbq = f;
+      script('https://connect.facebook.net/en_US/fbevents.js');
+    }
+    w.fbq('init', s.facebookPixel);
   }
   if (s.tiktokPixel) {
     const ttq: any = [];

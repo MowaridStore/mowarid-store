@@ -60,9 +60,11 @@ app.use('/api/*', (c, next) =>
   })(c, next),
 );
 app.use('*', async (c, next) => {
+  // Meta can fall back to a POST targeting its pixel iframe. Allow only that
+  // HTTPS endpoint; merchant domains and external gateway hosts are not pinned here.
   c.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://connect.facebook.net https://analytics.tiktok.com https://www.googletagmanager.com https://sc-static.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://*.facebook.com https://*.tiktok.com https://*.google-analytics.com https://*.analytics.google.com https://*.snapchat.com; frame-src 'self' https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'",
+    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://connect.facebook.net https://analytics.tiktok.com https://www.googletagmanager.com https://sc-static.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://*.facebook.com https://*.tiktok.com https://*.google-analytics.com https://*.analytics.google.com https://*.snapchat.com; frame-src 'self' https://challenges.cloudflare.com https://www.facebook.com/tr/; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com/tr/",
   );
   await next();
 });

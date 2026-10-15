@@ -469,6 +469,7 @@ export const orderSchema = z.object({
     .object({
       fbp: text(200).optional(),
       fbc: text(500).optional(),
+      path: text(2000).optional(),
       consent: z.boolean().optional(),
     })
     .default({}),

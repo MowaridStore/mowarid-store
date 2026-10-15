@@ -1,6 +1,7 @@
 import { maximumShipping } from './shipping-policy';
 import { recordRemote } from './tracking';
 import { META_GRAPH_VERSION } from './meta';
+import { flushMetaEvents } from './meta-events';
 export { recordRemote } from './tracking';
 import { deliveredShipping, remoteShipping } from '../shared/order-status';
 import { currentOrderCustomer } from '../shared/order-customer';
@@ -519,6 +520,7 @@ export async function refreshTracking(env: Env, requested = false) {
   }
 }
 export async function tick(env: Env) {
+  await flushMetaEvents(env, 25);
   const last = (await state(env.DB, 'schedule')) || {};
   const time = Date.now();
   const key = await credential(env, 'mowarid');
@@ -599,6 +601,7 @@ export async function tick(env: Env) {
       env.DB.prepare('DELETE FROM sessions WHERE expires_at<?').bind(time),
       env.DB.prepare('DELETE FROM auth_challenges WHERE expires_at<?').bind(time),
       env.DB.prepare("DELETE FROM visits WHERE date<date('now','-90 days')"),
+      env.DB.prepare('DELETE FROM meta_events WHERE created_at<?').bind(time - 7 * 86400000),
       env.DB.prepare(
         "DELETE FROM webhook_inbox WHERE status IN ('done','ignored') AND received_at<datetime('now','-30 days')",
       ),

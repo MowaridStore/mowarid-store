@@ -1299,7 +1299,11 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
     [saved, setSaved] = useState<string[]>([]),
     [health, setHealth] = useState(''),
     [pixelSnippet, setPixelSnippet] = useState(''),
+    [pixelStatus, setPixelStatus] = useState<any>(null),
+    [metaTestCode, setMetaTestCode] = useState(''),
+    [testingMeta, setTestingMeta] = useState(false),
     [integrationStatus, setIntegrationStatus] = useState<any>(null);
+  const refreshPixelStatus = async () => setPixelStatus(await api('/admin/pixels/status'));
   const load = async () => {
     const r = await api('/admin/settings');
     setS(r.settings);
@@ -1310,6 +1314,9 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
   };
   useEffect(() => {
     void action(load, '');
+  }, [kind]);
+  useEffect(() => {
+    if (kind === 'pixels') void refreshPixelStatus().catch(() => {});
   }, [kind]);
   useEffect(() => {
     if (kind !== 'integration') return;
@@ -1403,6 +1410,7 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
       setSecrets((current) => ({ ...current, meta: '' }));
       await load();
     }
+    if (kind === 'pixels') await refreshPixelStatus();
   };
   if (!ready) return <p className="loading">{t('جارٍ التحميل…')}</p>;
   const saveConnection = async () => {
@@ -1785,7 +1793,7 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
               {field('googleId', 'Google Tag / GA4 ID')}
               {field('snapPixel', 'Snapchat Pixel ID')}
               <details className="wide">
-                <summary>{t('إعداد حدث الشراء عند التوصيل إلى Meta')}</summary>
+                <summary>{t('إعداد تتبع Meta عبر السيرفر')}</summary>
                 <Field
                   secret
                   autoComplete="new-password"
@@ -1812,9 +1820,83 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                 </p>
                 <p className="muted">
                   {t(
-                    'أدخل معرّف البكسل ورمز CAPI. يُحفظ الرمز على السيرفر ونرسل الشراء عند التوصيل الفعلي فقط.',
+                    'نرسل زيارات الصفحات وبدء الطلب عبر CAPI، وحدث Lead بعد حفظ الطلب. يُرسل Purchase عند التوصيل الفعلي فقط.',
                   )}
                 </p>
+                {pixelStatus && (
+                  <p role="status">
+                    {t(
+                      (
+                        {
+                          not_configured: 'احفظ معرّف البكسل ورمز CAPI أولًا.',
+                          awaiting_event: 'الرمز محفوظ. لم يُختبر قبول Meta للأحداث بعد.',
+                          connected: 'أكدت Meta قبول أحداث السيرفر.',
+                          rejected: 'رفضت Meta آخر محاولة. راجع معرّف البكسل وصلاحية رمز CAPI.',
+                        } as Record<string, string>
+                      )[pixelStatus.connection],
+                    )}
+                    {pixelStatus.errorCode ? ' (' + pixelStatus.errorCode + ')' : ''}
+                  </p>
+                )}
+                {pixelStatus?.web && (
+                  <p className="muted">
+                    {t('أحداث الويب: أُرسلت')} {pixelStatus.web.sent}
+                    {' · '}
+                    {t('بانتظار الإرسال')} {pixelStatus.web.pending}
+                    {' · '}
+                    {t('تعذر إرسالها')} {pixelStatus.web.failed}
+                  </p>
+                )}
+                <Field
+                  label={t('رمز اختبار Meta')}
+                  value={metaTestCode}
+                  onChange={setMetaTestCode}
+                />
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={testingMeta || !/^TEST\d{3,20}$/.test(metaTestCode.trim())}
+                  onClick={() => {
+                    if (testingMeta) return;
+                    setTestingMeta(true);
+                    void action(async () => {
+                      try {
+                        await api(
+                          '/admin/pixels/test',
+                          { testEventCode: metaTestCode.trim() },
+                          'POST',
+                        );
+                      } finally {
+                        try {
+                          await refreshPixelStatus();
+                        } finally {
+                          setTestingMeta(false);
+                        }
+                      }
+                    }, t('قبلت Meta حدث الاختبار. راجع Événements de test.'));
+                  }}
+                >
+                  {t('إرسال حدث اختبار')}
+                </button>
+                <p className="muted">
+                  {t(
+                    'انسخ الرمز من Événements de test. نرسل PageView للاختبار فقط، ولا نحفظ الرمز أو ننشئ طلبًا. اختبر البكسل بفتح واجهة المتجر، وليس لوحة الإدارة.',
+                  )}
+                </p>
+                {!!pixelStatus?.web?.failed && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      void action(async () => {
+                        await api('/admin/pixels/retry', {}, 'POST');
+                        await refreshPixelStatus();
+                      }, t('تمت جدولة إعادة المحاولة.'))
+                    }
+                  >
+                    {t('إعادة إرسال الأحداث المتعثرة')}
+                  </button>
+                )}
               </details>
             </>
           ) : (

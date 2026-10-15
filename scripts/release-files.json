@@ -198,5 +198,9 @@
   "src/shared/typography.ts",
   "tests/header-typography.test.ts",
   "tests/e2e/header-typography.spec.ts",
-  "tests/e2e/quote-retry.spec.ts"
+  "tests/e2e/quote-retry.spec.ts",
+  "migrations/0019_meta_events.sql",
+  "src/server/meta-events.ts",
+  "tests/meta-events.test.ts",
+  "tests/e2e/meta-tracking.spec.ts"
 ]

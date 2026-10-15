@@ -4288,8 +4288,8 @@
     "fr": "Dernier envoi réussi"
   },
   "بانتظار الإرسال": {
-    "en": "Awaiting delivery to Meta",
-    "fr": "En attente d’envoi"
+    "en": "Pending",
+    "fr": "En attente"
   },
   "أحداث المتصفح لا تثبت عمل CAPI. نجاح Purchase هنا يعني أن Meta قبلت حدث شراء بعد التوصيل الفعلي.": {
     "en": "Browser events do not verify CAPI. A successful Purchase here means Meta accepted a purchase event after physical delivery.",
@@ -5466,5 +5466,73 @@
   "سيتواصل معك رجل التوصيل": {
     "en": "The delivery driver will contact you.",
     "fr": "Le livreur vous contactera."
+  },
+  "إعداد تتبع Meta عبر السيرفر": {
+    "en": "Meta server-side tracking",
+    "fr": "Suivi Meta côté serveur"
+  },
+  "نرسل زيارات الصفحات وبدء الطلب عبر CAPI، وحدث Lead بعد حفظ الطلب. يُرسل Purchase عند التوصيل الفعلي فقط.": {
+    "en": "Page visits and checkout starts are sent through CAPI, and Lead after an order is saved. Purchase is sent only after actual delivery.",
+    "fr": "Les visites et débuts de commande sont envoyés via CAPI, puis Lead après l’enregistrement de la commande. Purchase est envoyé uniquement après la livraison effective."
+  },
+  "احفظ معرّف البكسل ورمز CAPI أولًا.": {
+    "en": "Save the Pixel ID and CAPI token first.",
+    "fr": "Enregistrez d’abord l’identifiant du pixel et le token CAPI."
+  },
+  "الرمز محفوظ. لم يُختبر قبول Meta للأحداث بعد.": {
+    "en": "Token saved. Event acceptance by Meta has not been tested yet.",
+    "fr": "Token enregistré. La réception des événements par Meta n’a pas encore été testée."
+  },
+  "أكدت Meta قبول أحداث السيرفر.": {
+    "en": "Meta confirmed receipt of server events.",
+    "fr": "Meta a confirmé la réception des événements serveur."
+  },
+  "رفضت Meta آخر محاولة. راجع معرّف البكسل وصلاحية رمز CAPI.": {
+    "en": "Meta rejected the last attempt. Check the Pixel ID and CAPI token permissions.",
+    "fr": "Meta a refusé la dernière tentative. Vérifiez l’identifiant du pixel et les autorisations du token CAPI."
+  },
+  "أحداث الويب: أُرسلت": {
+    "en": "Web events: sent",
+    "fr": "Événements web : envoyés"
+  },
+  "تعذر إرسالها": {
+    "en": "Failed",
+    "fr": "Échec"
+  },
+  "رمز اختبار Meta": {
+    "en": "Meta test event code",
+    "fr": "Code de test Meta"
+  },
+  "قبلت Meta حدث الاختبار. راجع Événements de test.": {
+    "en": "Meta accepted the test event. Check Test Events.",
+    "fr": "Meta a accepté l’événement de test. Consultez Événements de test."
+  },
+  "إرسال حدث اختبار": {
+    "en": "Send test event",
+    "fr": "Envoyer un événement de test"
+  },
+  "انسخ الرمز من Événements de test. نرسل PageView للاختبار فقط، ولا نحفظ الرمز أو ننشئ طلبًا. اختبر البكسل بفتح واجهة المتجر، وليس لوحة الإدارة.": {
+    "en": "Copy the code from Test Events. This sends a test-only PageView without saving the code or creating an order. Test the Pixel on the storefront, rather than the admin panel.",
+    "fr": "Copiez le code depuis Événements de test. Seul un PageView de test est envoyé, sans enregistrer le code ni créer de commande. Testez le pixel sur la boutique, plutôt que dans l’administration."
+  },
+  "تمت جدولة إعادة المحاولة.": {
+    "en": "Retry scheduled.",
+    "fr": "Nouvelle tentative programmée."
+  },
+  "إعادة إرسال الأحداث المتعثرة": {
+    "en": "Retry failed events",
+    "fr": "Réessayer les événements en échec"
+  },
+  "لم تقبل Meta حدث الاختبار. راجع صلاحية رمز CAPI ومعرّف البكسل ورمز الاختبار.": {
+    "en": "Meta did not accept the test event. Check the CAPI token permissions, Pixel ID and test code.",
+    "fr": "Meta n’a pas accepté l’événement de test. Vérifiez les autorisations du token CAPI, l’identifiant du pixel et le code de test."
+  },
+  "أعد تحميل الصفحة لتحديث التتبع.": {
+    "en": "Reload the page to refresh tracking.",
+    "fr": "Rechargez la page pour actualiser le suivi."
+  },
+  "اختر صفحة من المتجر.": {
+    "en": "Choose a storefront page.",
+    "fr": "Choisissez une page de la boutique."
   }
 }
