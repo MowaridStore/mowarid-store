@@ -1,7 +1,7 @@
 import React from 'react';
 import { t } from './language';
 export type ImagePurpose =
-  'category' | 'logo' | 'favicon' | 'hero' | 'product' | 'landing' | 'general';
+  'category' | 'logo' | 'favicon' | 'hero' | 'hero-card' | 'product' | 'landing' | 'general';
 function guides() {
   return [
     {
@@ -32,6 +32,14 @@ function guides() {
       size: '1200 × 800',
       hint: t(
         'صورة أفقية بنسبة 3:2، واضحة دون نصوص صغيرة. تظهر بجانب عنوان الرئيسية وتحافظ على أبعادها.',
+      ),
+    },
+    {
+      purpose: 'hero-card',
+      name: t('صورتا القسم الرئيسي'),
+      size: '1200 × 1200',
+      hint: t(
+        'اختر صورتين متناسقتين بخلفية هادئة ودون كتابات صغيرة. تظهر كل صورة كاملة داخل بطاقتها دون قص.',
       ),
     },
     {

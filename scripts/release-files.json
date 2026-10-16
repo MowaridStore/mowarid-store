@@ -206,5 +206,7 @@
   "src/admin/analytics.tsx",
   "src/shared/campaigns.ts",
   "tests/campaigns.test.ts",
-  "tests/e2e/campaigns.spec.ts"
+  "tests/e2e/campaigns.spec.ts",
+  "tests/hero-cta.test.ts",
+  "tests/e2e/hero-cta.spec.ts"
 ]

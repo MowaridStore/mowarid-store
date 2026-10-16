@@ -102,6 +102,7 @@ export type Block = {
     text?: string;
     color?: string;
     textColor?: string;
+    backgroundColor?: string;
     size?: number;
     margin?: number;
   };
@@ -358,6 +359,7 @@ export type Settings = {
     heroImage: string;
     heroImageWidth: number;
     heroImageHeight: number;
+    heroCardImages: [string, string];
     heroButtonText: string;
     heroProof: string[];
     showHero: boolean;
@@ -458,6 +460,7 @@ export const defaults: Settings = {
     heroImage: '',
     heroImageWidth: 1080,
     heroImageHeight: 1080,
+    heroCardImages: ['', ''],
     heroButtonText: 'اكتشف المنتجات',
     heroProof: ['✓ الدفع عند الاستلام', '✓ تأكيد هاتفي'],
     showHero: true,

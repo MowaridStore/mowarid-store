@@ -602,10 +602,15 @@ export function Home({
   const selected = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
   const selectedSort = productSort(sort, s.home.showPriceSort !== false);
   const ordered = sortedProducts(products, selectedSort, (p) => pricedProduct(p).price, searchIds);
+  const heroCards = [0, 1].map((index) => ({
+    custom: s.home.heroCardImages?.[index] || '',
+    product: products[index],
+  }));
+  const legacyHero = s.home.heroImage && !heroCards.some((card) => card.custom);
   return (
     <main class="shop-home">
       {s.home.showHero && (
-        <section class={'hero shop-hero' + (s.home.heroImage ? ' custom-hero' : '')}>
+        <section class={'hero shop-hero' + (legacyHero ? ' custom-hero' : '')}>
           <div class="hero-copy">
             <span class="eyebrow">{s.home.heroEyebrow}</span>
             <h1 style={{ whiteSpace: 'pre-line' }}>{s.heroTitle}</h1>
@@ -620,7 +625,7 @@ export function Home({
               ))}
             </div>
           </div>
-          {s.home.heroImage ? (
+          {legacyHero ? (
             <img
               class="hero-image"
               src={s.home.heroImage}
@@ -631,20 +636,25 @@ export function Home({
             />
           ) : (
             <div class="hero-collection" data-hero-collection aria-hidden="true">
-              {products.slice(0, 2).map((p, i) => (
-                <div
-                  class={'hero-product hero-product-' + i}
-                  data-hero-product
-                  data-supplier={p.supplier || ''}
-                >
-                  {p.image ? (
-                    <img src={p.image} alt="" width="480" height="480" />
-                  ) : (
-                    <Icon name="bag" size={70} />
-                  )}
-                </div>
-              ))}
-              {!products.length && (
+              {heroCards.map(
+                ({ custom, product: p }, i) =>
+                  (custom || p) && (
+                    <div
+                      class={'hero-product hero-product-' + i}
+                      data-hero-product
+                      data-hero-index={i}
+                      data-hero-custom={custom ? 'true' : undefined}
+                      data-supplier={custom ? undefined : p?.supplier || ''}
+                    >
+                      {custom || p?.image ? (
+                        <img src={custom || p!.image} alt="" width="480" height="480" />
+                      ) : (
+                        <Icon name="bag" size={70} />
+                      )}
+                    </div>
+                  ),
+              )}
+              {!products.length && !heroCards.some((card) => card.custom) && (
                 <div class="hero-empty-mark">
                   <Icon name="bag" size={72} />
                   <span>{s.home.tagline}</span>
@@ -912,7 +922,13 @@ export function ProductPage({
               fetchpriority={b.id === firstImage ? 'high' : 'auto'}
             />
           ) : b.type === 'CTA' ? (
-            <div class="cta-block" style={{ padding: String(b.settings.margin ?? 24) + 'px' }}>
+            <div
+              class="cta-block"
+              style={{
+                padding: String(b.settings.margin ?? 24) + 'px',
+                background: b.settings.backgroundColor || 'transparent',
+              }}
+            >
               <a
                 href={preview ? 'about:srcdoc#order-form' : '#order-form'}
                 data-scroll-order

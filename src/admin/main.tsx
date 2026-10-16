@@ -1689,6 +1689,7 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                           showSearch: value.home.showSearch,
                           showPriceSort: value.home.showPriceSort,
                           showNavigation: value.home.showNavigation,
+                          heroCardImages: value.home.heroCardImages,
                           licenseCard: {
                             ...s.home.licenseCard,
                             enabled: value.home.licenseCard.enabled,
@@ -1722,6 +1723,16 @@ function AppearanceSettings({
   setS: (s: Settings) => void;
   action: Action;
 }) {
+  const latest = useRef(s);
+  latest.current = s;
+  const heroCard = (index: number, url: string) => {
+    const current = latest.current;
+    const images = [...(current.home.heroCardImages || ['', ''])] as [string, string];
+    images[index] = url;
+    const next = { ...current, home: { ...current.home, heroCardImages: images } };
+    latest.current = next;
+    setS(next);
+  };
   const home = <K extends keyof Settings['home']>(key: K, value: Settings['home'][K]) =>
     setS({ ...s, home: { ...s.home, [key]: value } });
   const text = (key: keyof Settings['home'], label: string, type = 'text') => (
@@ -1927,23 +1938,61 @@ function AppearanceSettings({
         type="textarea"
       />
       {text('heroButtonText', t('نص زر الرئيسية'))}
-      <Upload
-        label={t('رفع صورة الرئيسية')}
-        purpose="hero"
-        action={action}
-        onUpload={(r) =>
-          setS({
-            ...s,
-            home: {
-              ...s.home,
-              heroImage: r.url,
-              heroImageWidth: r.width,
-              heroImageHeight: r.height,
-            },
-          })
-        }
-      />
-      {s.home.heroImage && (
+      {s.home.heroImage && !s.home.heroCardImages?.some(Boolean) ? (
+        <Upload
+          label={t('رفع صورة الرئيسية')}
+          purpose="hero"
+          action={action}
+          onUpload={(r) =>
+            setS({
+              ...s,
+              home: {
+                ...s.home,
+                heroImage: r.url,
+                heroImageWidth: r.width,
+                heroImageHeight: r.height,
+              },
+            })
+          }
+        />
+      ) : (
+        <div className="wide hero-card-settings">
+          <h3>{t('صورتا القسم الرئيسي')}</h3>
+          <p className="muted">
+            {t('يمكنك تغيير كل صورة على حدة. عند إزالتها نستخدم صورة المنتج تلقائيًا.')}
+          </p>
+          <div className="settings-grid">
+            {[0, 1].map((index) => (
+              <div className="hero-card-setting" key={index}>
+                <Upload
+                  label={t(index === 0 ? 'تغيير الصورة الأولى' : 'تغيير الصورة الثانية')}
+                  purpose="hero-card"
+                  compact
+                  action={action}
+                  onUpload={(image) => heroCard(index, image.url)}
+                />
+                {s.home.heroCardImages?.[index] && (
+                  <>
+                    <img
+                      className="settings-image"
+                      src={s.home.heroCardImages[index]}
+                      alt={t(index === 0 ? 'الصورة الأولى' : 'الصورة الثانية')}
+                    />
+                    <button
+                      type="button"
+                      className="small-button"
+                      onClick={() => heroCard(index, '')}
+                    >
+                      {t('استخدام صورة المنتج تلقائيًا')}
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {s.home.heroImage && !s.home.heroCardImages?.some(Boolean) && (
         <div className="wide">
           <img className="settings-image" src={s.home.heroImage} alt={t('صورة الرئيسية')} />
           <button type="button" className="small-button" onClick={() => home('heroImage', '')}>
@@ -3799,6 +3848,21 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                           value={b.settings.textColor || '#ffffff'}
                           onChange={(v) => blockSettings(b.id, 'textColor', v)}
                         />
+                        <Field
+                          path={`blocks.${i}.settings.backgroundColor`}
+                          label={t('خلفية المساحة حول الزر')}
+                          type="color"
+                          value={b.settings.backgroundColor || landingUISettings.theme.background}
+                          onChange={(v) => blockSettings(b.id, 'backgroundColor', v)}
+                        />
+                        <button
+                          type="button"
+                          className="small-button"
+                          disabled={!b.settings.backgroundColor}
+                          onClick={() => blockSettings(b.id, 'backgroundColor', undefined)}
+                        >
+                          {t('استخدام خلفية الصفحة')}
+                        </button>
                         <Field
                           path={`blocks.${i}.settings.size`}
                           label={t('حجم النص')}

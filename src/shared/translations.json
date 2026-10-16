@@ -5626,5 +5626,45 @@
   "تم النسخ": {
     "en": "Copied",
     "fr": "Copié"
+  },
+  "صورتا القسم الرئيسي": {
+    "en": "Homepage image cards",
+    "fr": "Les deux images de l’accueil"
+  },
+  "يمكنك تغيير كل صورة على حدة. عند إزالتها نستخدم صورة المنتج تلقائيًا.": {
+    "en": "Change either image independently. Removing a custom image restores the automatic product image.",
+    "fr": "Modifiez chaque image séparément. Supprimer une image personnalisée rétablit automatiquement celle du produit."
+  },
+  "تغيير الصورة الأولى": {
+    "en": "Change first image",
+    "fr": "Changer la première image"
+  },
+  "تغيير الصورة الثانية": {
+    "en": "Change second image",
+    "fr": "Changer la deuxième image"
+  },
+  "الصورة الأولى": {
+    "en": "First image",
+    "fr": "Première image"
+  },
+  "الصورة الثانية": {
+    "en": "Second image",
+    "fr": "Deuxième image"
+  },
+  "استخدام صورة المنتج تلقائيًا": {
+    "en": "Use automatic product image",
+    "fr": "Utiliser automatiquement l’image du produit"
+  },
+  "اختر صورتين متناسقتين بخلفية هادئة ودون كتابات صغيرة. تظهر كل صورة كاملة داخل بطاقتها دون قص.": {
+    "en": "Choose two coordinated images with a simple background and no small text. Each image fits fully inside its card without cropping.",
+    "fr": "Choisissez deux images harmonieuses avec un fond sobre et sans petits textes. Chaque image s’affiche entièrement dans sa carte, sans recadrage."
+  },
+  "خلفية المساحة حول الزر": {
+    "en": "Background around the button",
+    "fr": "Fond autour du bouton"
+  },
+  "استخدام خلفية الصفحة": {
+    "en": "Use page background",
+    "fr": "Utiliser le fond de la page"
   }
 }

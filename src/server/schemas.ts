@@ -87,6 +87,7 @@ export const blockSchema = z.object({
       text: text(200).optional(),
       color: color.optional(),
       textColor: color.optional(),
+      backgroundColor: color.optional(),
       size: z.number().min(12).max(40).optional(),
       margin: z.number().min(0).max(100).optional(),
       codBadgeText: text(150).optional(),
@@ -375,6 +376,7 @@ const baseSettingsSchema = z
         heroImage: url,
         heroImageWidth: z.number().int().min(1).max(2000),
         heroImageHeight: z.number().int().min(1).max(16383),
+        heroCardImages: z.tuple([url, url]).default(['', '']),
         heroButtonText: text(100),
         heroProof: z.array(text(150)).max(6),
         showHero: z.boolean(),
@@ -422,6 +424,7 @@ const storeContentSchema = baseSettingsSchema
         showSearch: z.boolean().optional(),
         showPriceSort: z.boolean().optional(),
         showNavigation: z.boolean().optional(),
+        heroCardImages: z.tuple([url, url]).optional(),
         licenseCard: baseSettingsSchema.shape.home.unwrap().shape.licenseCard.unwrap().optional(),
       })
       .optional(),

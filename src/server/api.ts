@@ -1214,6 +1214,8 @@ api.put('/admin/settings', async (c) => {
     s.home.showSearch = old.home.showSearch;
   if (!body.home || !Object.hasOwn(body.home, 'showPriceSort'))
     s.home.showPriceSort = old.home.showPriceSort;
+  if (!body.home || !Object.hasOwn(body.home, 'heroCardImages'))
+    s.home.heroCardImages = old.home.heroCardImages;
   if (!body.home || !Object.hasOwn(body.home, 'licenseCard'))
     s.home.licenseCard = old.home.licenseCard;
   for (const key of ['contactEmail', 'contactPhone', 'socials', 'checkoutOffers'] as const)

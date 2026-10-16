@@ -418,7 +418,8 @@ function render() {
     .filter((p) => p.storefrontVisible !== 0 && (!cart.length || p.supplier === cart[0].supplier))
     .slice(0, 2);
   document.querySelectorAll<HTMLElement>('[data-hero-product]').forEach((el, index) => {
-    const p = heroProducts[index];
+    if (el.dataset.heroCustom === 'true') return;
+    const p = heroProducts[Number(el.dataset.heroIndex ?? index)];
     el.hidden = !p;
     if (!p) return;
     const image = el.querySelector<HTMLImageElement>('img');

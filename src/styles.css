@@ -6799,3 +6799,21 @@ bdi[dir='ltr'] {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+.hero-card-settings > p {
+  margin-bottom: 14px;
+}
+.hero-card-setting {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+.hero-card-setting .settings-image {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+}
+.hero-card-setting > button {
+  justify-self: start;
+}
