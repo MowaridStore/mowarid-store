@@ -150,6 +150,7 @@ describe('independent dashboard and storefront languages', () => {
   it('has French and English translations for every literal interface translation call', async () => {
     for (const file of [
       'src/admin/main.tsx',
+      'src/admin/analytics.tsx',
       'src/admin/profit-preview.tsx',
       'src/admin/bundles.tsx',
       'src/admin/recommendations.tsx',

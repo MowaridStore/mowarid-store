@@ -202,5 +202,9 @@
   "migrations/0019_meta_events.sql",
   "src/server/meta-events.ts",
   "tests/meta-events.test.ts",
-  "tests/e2e/meta-tracking.spec.ts"
+  "tests/e2e/meta-tracking.spec.ts",
+  "src/admin/analytics.tsx",
+  "src/shared/campaigns.ts",
+  "tests/campaigns.test.ts",
+  "tests/e2e/campaigns.spec.ts"
 ]

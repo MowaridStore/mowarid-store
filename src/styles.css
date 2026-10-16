@@ -6626,3 +6626,176 @@ bdi[dir='ltr'] {
   font-weight: 400;
   line-height: 1.7;
 }
+
+/* Campaign reports stay compact; only the table scrolls on narrow screens. */
+.campaign-header,
+.campaign-pagination,
+.campaign-pagination > div,
+.campaign-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.campaign-header {
+  margin-bottom: 18px;
+}
+.campaign-header [role='tablist'] {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--line);
+  padding: 4px;
+  border-radius: 12px;
+  background: white;
+}
+.campaign-header [role='tab'] {
+  background: transparent;
+  padding: 10px 24px;
+}
+.campaign-header [aria-selected='true'] {
+  background: var(--green);
+  color: white;
+}
+.campaign-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+.campaign-filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 130px;
+  flex: 1;
+}
+.campaign-filters .campaign-search {
+  flex: 2;
+  min-width: 210px;
+}
+.campaign-filters input,
+.campaign-filters select {
+  width: 100%;
+  min-width: 0;
+}
+.campaign-table {
+  min-width: 690px;
+  white-space: normal;
+  font-size: 14px;
+}
+.campaign-table th {
+  font-size: 12px;
+}
+.campaign-table td,
+.campaign-table th {
+  vertical-align: middle;
+}
+.campaign-table td:first-child {
+  min-width: 220px;
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+.campaign-table td:not(:first-child) {
+  white-space: nowrap;
+}
+.campaign-source {
+  display: block;
+  font-size: 12px;
+  margin-top: 5px;
+}
+.campaign-breakdown > td {
+  padding: 12px;
+  background: #f5f7f2;
+}
+.campaign-breakdown table {
+  font-size: 13px;
+}
+.campaign-breakdown tr:last-child td {
+  border-bottom: 0;
+}
+.campaign-target {
+  display: block;
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+}
+.campaign-pagination {
+  margin-top: 20px;
+  font-size: 13px;
+}
+.campaign-pagination button {
+  padding: 8px 14px;
+}
+.campaign-note {
+  margin: 18px 0 0;
+  font-size: 12px;
+}
+.campaign-dialog {
+  width: min(640px, 94vw);
+  padding: 24px;
+}
+.campaign-dialog .dialog-heading h2 {
+  font-size: 21px;
+}
+.campaign-form {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.campaign-form label {
+  display: grid;
+  gap: 8px;
+}
+.campaign-form input,
+.campaign-form select {
+  width: 100%;
+  min-width: 0;
+}
+.campaign-form p {
+  margin: 0;
+}
+.campaign-form > strong {
+  overflow-wrap: anywhere;
+}
+.campaign-row-actions {
+  flex-wrap: nowrap;
+  justify-content: start;
+}
+@media (max-width: 600px) {
+  .campaign-header [role='tab'] {
+    padding: 10px 16px;
+  }
+  .campaign-header > .primary {
+    padding: 12px 16px;
+  }
+  .campaign-filters label {
+    min-width: 125px;
+  }
+  .campaign-filters .campaign-search {
+    flex-basis: 100%;
+  }
+  .campaign-dialog {
+    padding: 18px;
+  }
+}
+.campaign-dialog {
+  margin: auto;
+}
+.campaign-form label,
+.campaign-filters label {
+  margin: 0;
+}
+.campaign-form input,
+.campaign-form select,
+.campaign-filters input,
+.campaign-filters select {
+  margin: 0;
+}
+.campaign-pagination > div > span {
+  direction: ltr;
+  unicode-bidi: isolate;
+}

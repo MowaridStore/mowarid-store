@@ -3272,8 +3272,8 @@
     "en": "Product names and descriptions in each language are optional. The corresponding version appears when a visitor changes the store language. Empty fields use the original content."
   },
   "جارٍ الحفظ…": {
-    "fr": "Enregistrement…",
-    "en": "Saving…"
+    "en": "Saving…",
+    "fr": "Enregistrement…"
   },
   "نوع الوصف المستورد من مورد": {
     "fr": "Type de description importée depuis Mowarid",
@@ -3400,8 +3400,8 @@
     "en": "Publish and add to recommendations"
   },
   "إلغاء": {
-    "fr": "Annuler",
-    "en": "Cancel"
+    "en": "Cancel",
+    "fr": "Annuler"
   },
   "حتى 8 منتجات من المورد نفسه. المنتجات غير المتاحة لا تظهر للزائر.": {
     "fr": "Jusqu’à 8 produits du même fournisseur. Les produits indisponibles sont masqués pour le visiteur.",
@@ -5534,5 +5534,97 @@
   "اختر صفحة من المتجر.": {
     "en": "Choose a storefront page.",
     "fr": "Choisissez une page de la boutique."
+  },
+  "الأداء": {
+    "en": "Performance",
+    "fr": "Performances"
+  },
+  "الروابط": {
+    "en": "Links",
+    "fr": "Liens"
+  },
+  "إنشاء رابط": {
+    "en": "Create link",
+    "fr": "Créer un lien"
+  },
+  "البحث باسم الحملة": {
+    "en": "Search by campaign name",
+    "fr": "Rechercher par nom de campagne"
+  },
+  "اكتب اسم الحملة": {
+    "en": "Enter a campaign name",
+    "fr": "Saisissez un nom de campagne"
+  },
+  "جميع المصادر": {
+    "en": "All sources",
+    "fr": "Toutes les sources"
+  },
+  "ترتيب حسب": {
+    "en": "Sort by",
+    "fr": "Trier par"
+  },
+  "أداء الحملات": {
+    "en": "Campaign performance",
+    "fr": "Performances des campagnes"
+  },
+  "تفاصيل الحملة": {
+    "en": "Campaign details",
+    "fr": "Détails de la campagne"
+  },
+  "تفاصيل المصادر": {
+    "en": "Source breakdown",
+    "fr": "Détail des sources"
+  },
+  "تفاصيل الرابط": {
+    "en": "Link details",
+    "fr": "Détails du lien"
+  },
+  "صفحة الوجهة": {
+    "en": "Destination page",
+    "fr": "Page de destination"
+  },
+  "تاريخ الإنشاء": {
+    "en": "Created on",
+    "fr": "Date de création"
+  },
+  "دون اسم حملة": {
+    "en": "Unnamed campaign",
+    "fr": "Campagne sans nom"
+  },
+  "لا توجد نتائج تطابق البحث أو الفلاتر.": {
+    "en": "No results match your search or filters.",
+    "fr": "Aucun résultat ne correspond à votre recherche ou à vos filtres."
+  },
+  "لا توجد بيانات في الفترة المحددة.": {
+    "en": "No data for the selected period.",
+    "fr": "Aucune donnée pour la période sélectionnée."
+  },
+  "لم تنشئ أي رابط بعد.": {
+    "en": "You have not created any links yet.",
+    "fr": "Vous n’avez pas encore créé de lien."
+  },
+  "صفحات النتائج": {
+    "en": "Results pages",
+    "fr": "Pages de résultats"
+  },
+  "عدد النتائج": {
+    "en": "Results",
+    "fr": "Résultats"
+  },
+  "حذف الرابط من القائمة لا يحذف إحصاءاته ولا يوقف الرابط المنشور في إعلانك.": {
+    "en": "Removing a saved link does not delete its statistics or disable the URL used in your ad.",
+    "fr": "Supprimer un lien de la liste n’efface pas ses statistiques et ne désactive pas l’URL utilisée dans votre publicité."
+  },
+  "ثريدز": {
+    "en": "Threads",
+    "fr": "Threads"
+  },
+  "شبكة جمهور Meta": {
+    "en": "Meta Audience Network",
+    "fr": "Meta Audience Network"
+  },
+  "تم النسخ": {
+    "en": "Copied",
+    "fr": "Copié"
   }
 }
