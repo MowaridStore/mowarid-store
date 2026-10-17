@@ -2546,6 +2546,17 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
       next.map((b, i) => ({ ...b, order: i })),
     );
   };
+  const duplicateButton = (id: string) => {
+    const blocks = draft!.blocks;
+    const index = blocks.findIndex((b) => b.id === id && b.type === 'CTA');
+    if (index < 0 || blocks.length >= 50) return;
+    const copy = { ...structuredClone(blocks[index]), id: crypto.randomUUID() };
+    const next = [...blocks.slice(0, index + 1), copy, ...blocks.slice(index + 1)];
+    patch(
+      'blocks',
+      next.map((b, order) => ({ ...b, order })),
+    );
+  };
   const previewDraft = (mode: 'product' | 'landing') =>
     void action(
       submit(async () => {
@@ -3665,8 +3676,9 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 <button
                   key={type}
                   disabled={
-                    type === 'ORDER_FORM' &&
-                    draft.blocks.some((block) => block.type === 'ORDER_FORM')
+                    draft.blocks.length >= 50 ||
+                    (type === 'ORDER_FORM' &&
+                      draft.blocks.some((block) => block.type === 'ORDER_FORM'))
                   }
                   onClick={() =>
                     patch('blocks', [
@@ -3750,6 +3762,15 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                         ↓
                       </button>
                     </>
+                    {b.type === 'CTA' && (
+                      <button
+                        type="button"
+                        disabled={draft.blocks.length >= 50}
+                        onClick={() => duplicateButton(b.id)}
+                      >
+                        {t('نسخ الزر')}
+                      </button>
+                    )}
                     <button
                       disabled={b.id === automaticForm?.id}
                       onClick={() =>
@@ -3855,14 +3876,6 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                           value={b.settings.backgroundColor || landingUISettings.theme.background}
                           onChange={(v) => blockSettings(b.id, 'backgroundColor', v)}
                         />
-                        <button
-                          type="button"
-                          className="small-button"
-                          disabled={!b.settings.backgroundColor}
-                          onClick={() => blockSettings(b.id, 'backgroundColor', undefined)}
-                        >
-                          {t('استخدام خلفية الصفحة')}
-                        </button>
                         <Field
                           path={`blocks.${i}.settings.size`}
                           label={t('حجم النص')}

@@ -69,6 +69,30 @@ test('both homepage cards can be uploaded, saved, kept through cart filtering an
           images[index],
         );
     }
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const geometry = await page.locator('[data-hero-product]').evaluateAll((cards) =>
+        cards.map((card) => {
+          const image = card.querySelector('img')!;
+          const style = getComputedStyle(card);
+          return {
+            background: style.backgroundColor,
+            padding: style.padding,
+            ratio: image.clientWidth / image.clientHeight,
+            naturalRatio: image.naturalWidth / image.naturalHeight,
+          };
+        }),
+      );
+      for (const card of geometry) {
+        expect(card.background).toBe('rgba(0, 0, 0, 0)');
+        expect(card.padding).toBe('0px');
+        expect(card.ratio).toBeCloseTo(card.naturalRatio, 1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        width,
+      );
+      await page.locator('.shop-hero').screenshot({ path: `test-results/hero-${width}.png` });
+    }
     await page.goto('/');
     await page.locator('[data-add-product="demo-candle"]').click();
     for (const index of [0, 1]) {
@@ -98,7 +122,7 @@ test('both homepage cards can be uploaded, saved, kept through cart filtering an
       await page.request.delete('/api/admin/media/' + image.split('/').pop(), { headers });
   }
 });
-test('CTA background can be edited beside its existing controls, previewed, saved, and reset independently', async ({
+test('CTA duplication preserves all controls, inserts an independent button in order, and survives saving', async ({
   page,
 }) => {
   const headers = await owner(page),
@@ -126,19 +150,64 @@ test('CTA background can be edited beside its existing controls, previewed, save
     const background = editor.getByLabel('خلفية المساحة حول الزر', { exact: true });
     await background.fill('#fff1f8');
     await editor.getByLabel('لون الزر', { exact: true }).fill('#770044');
+    await editor.getByLabel('لون النص', { exact: true }).fill('#ffffee');
+    await editor.getByLabel('نص الزر', { exact: true }).fill('اطلب الآن');
+    await editor.getByLabel('حجم النص', { exact: true }).fill('21');
+    await editor.getByLabel('المسافة حول الزر', { exact: true }).fill('32');
+    await editor.getByRole('button', { name: 'استمارة +', exact: true }).click();
+    const blocks = editor.locator('.editor-block');
+    await blocks.first().getByLabel('ظاهر', { exact: true }).uncheck();
+    await blocks.first().getByRole('button', { name: 'نسخ الزر', exact: true }).click();
+    await expect(blocks).toHaveCount(3);
+    await expect(blocks.nth(1).getByLabel('ظاهر', { exact: true })).not.toBeChecked();
+    for (const block of [blocks.first(), blocks.nth(1)]) {
+      await expect(block.getByLabel('نص الزر', { exact: true })).toHaveValue('اطلب الآن');
+      await expect(block.getByLabel('لون الزر', { exact: true })).toHaveValue('#770044');
+      await expect(block.getByLabel('لون النص', { exact: true })).toHaveValue('#ffffee');
+      await expect(block.getByLabel('خلفية المساحة حول الزر', { exact: true })).toHaveValue(
+        '#fff1f8',
+      );
+      await expect(block.getByLabel('حجم النص', { exact: true })).toHaveValue('21');
+      await expect(block.getByLabel('المسافة حول الزر', { exact: true })).toHaveValue('32');
+      await block.getByLabel('ظاهر', { exact: true }).check();
+    }
+    await blocks.nth(1).getByLabel('نص الزر', { exact: true }).fill('نسخة مستقلة');
+    await expect(blocks.first().getByLabel('نص الزر', { exact: true })).toHaveValue('اطلب الآن');
+    await expect(
+      editor.getByRole('button', { name: 'استخدام خلفية الصفحة', exact: true }),
+    ).toHaveCount(0);
     await page.getByRole('button', { name: 'معاينة المسودة', exact: true }).click();
     const frame = page.frameLocator('iframe[title="معاينة صفحة المنتج"]');
-    await expect(frame.locator('.cta-block')).toHaveCSS('background-color', 'rgb(255, 241, 248)');
-    await expect(frame.locator('.cta-block a')).toHaveCSS('background-color', 'rgb(119, 0, 68)');
+    await expect(frame.locator('.cta-block')).toHaveCount(2);
+    await expect(frame.locator('.cta-block').first()).toHaveCSS(
+      'background-color',
+      'rgb(255, 241, 248)',
+    );
+    await expect(frame.locator('.cta-block a').first()).toHaveCSS(
+      'background-color',
+      'rgb(119, 0, 68)',
+    );
     await page.getByRole('button', { name: 'إغلاق المعاينة', exact: true }).click();
     await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
     await expect(page.getByText('تم حفظ المنتج.', { exact: true })).toBeVisible();
     await page.goto('/offers/daily-bag');
-    await expect(page.locator('.cta-block')).toHaveCSS('background-color', 'rgb(255, 241, 248)');
+    await expect(page.locator('.cta-block')).toHaveCount(2);
+    await expect(page.locator('.cta-block').first()).toHaveCSS(
+      'background-color',
+      'rgb(255, 241, 248)',
+    );
+    for (const button of await page.locator('.cta-block a').all()) {
+      await button.click();
+      await expect(page.locator('#order-form')).toBeInViewport();
+    }
     const saved = (await (await page.request.get('/api/admin/products')).json()).find(
       (p: any) => p.id === original.id,
     );
     expect(saved.blocks[0].settings.backgroundColor).toBe('#fff1f8');
+    expect(saved.blocks.map((b: any) => b.type)).toEqual(['CTA', 'CTA', 'ORDER_FORM']);
+    expect(saved.blocks.map((b: any) => b.order)).toEqual([0, 1, 2]);
+    expect(new Set(saved.blocks.map((b: any) => b.id)).size).toBe(3);
+    expect(saved.blocks[1].settings).toEqual({ ...saved.blocks[0].settings, text: 'نسخة مستقلة' });
     await page.goto('/admin/products');
     await page
       .locator('tbody tr')
@@ -146,10 +215,40 @@ test('CTA background can be edited beside its existing controls, previewed, save
       .getByRole('button', { name: 'تعديل', exact: true })
       .click();
     await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
-    await page.getByRole('button', { name: 'استخدام خلفية الصفحة', exact: true }).click();
-    await page.getByRole('button', { name: 'معاينة المسودة', exact: true }).click();
-    await expect(frame.locator('.cta-block')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(frame.locator('.cta-block a')).toHaveCSS('background-color', 'rgb(119, 0, 68)');
+    await expect(blocks.nth(1).getByLabel('نص الزر', { exact: true })).toHaveValue('نسخة مستقلة');
+    const nearLimit = Array.from({ length: 47 }, (_, index) => ({
+      id: 'image-' + index,
+      type: 'IMAGE',
+      order: index + 1,
+      enabled: false,
+      settings: {},
+    }));
+    expect(
+      (
+        await page.request.put('/api/admin/products/' + original.id, {
+          headers,
+          data: {
+            ...saved,
+            blocks: [saved.blocks[0], ...nearLimit, { ...saved.blocks[2], order: 48 }],
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    await page.reload();
+    await page
+      .locator('tbody tr')
+      .filter({ hasText: original.sku })
+      .getByRole('button', { name: 'تعديل', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'تعديل صفحة الهبوط', exact: true }).click();
+    await blocks.first().getByRole('button', { name: 'نسخ الزر', exact: true }).click();
+    await expect(blocks).toHaveCount(50);
+    await expect(
+      blocks.first().getByRole('button', { name: 'نسخ الزر', exact: true }),
+    ).toBeDisabled();
+    await expect(editor.getByRole('button', { name: 'زر +', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'حفظ المنتج', exact: true }).click();
+    await expect(page.getByText('تم حفظ المنتج.', { exact: true })).toBeVisible();
   } finally {
     await page.request.put('/api/admin/products/' + original.id, { headers, data: original });
   }
