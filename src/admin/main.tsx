@@ -26,6 +26,7 @@ import {
   closedOrder,
   statusTone,
   postponementNote,
+  cancellationReason,
   postponementDate,
 } from '../shared/order-status';
 import { businessDate } from '../shared/time';
@@ -4764,6 +4765,18 @@ function Orders({ action }: { action: Action }) {
                   </details>
                 )}
             </section>
+            {o.mowarid_id && closedOrder(o.shipping_status, o.status) && (
+              <section
+                className="order-cancellation-reason"
+                aria-label={t('سبب الإلغاء / الإرجاع')}
+              >
+                <h3>{t('سبب الإلغاء / الإرجاع')}</h3>
+                <p>
+                  {cancellationReason(o.remote?.status, o.shipping_status) ||
+                    t('لم يرسل مورد سبب الإلغاء أو الإرجاع عبر الربط بعد.')}
+                </p>
+              </section>
+            )}
             <OrderPricingPanel pricing={p} view="products" />
             <section className="order-followup">
               <dl>

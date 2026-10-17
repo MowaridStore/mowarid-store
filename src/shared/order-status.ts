@@ -29,6 +29,19 @@ export const callLabels: Record<string, string> = {
 export function closedOrder(shipping?: string | null, local?: string) {
   return local === 'cancelled' || ['cancelled', 'returned', 'deleted'].includes(shipping || '');
 }
+// Explicit partner fields only. Customer notes, call notes and financial
+// holds do not describe why an order was cancelled or returned.
+export function cancellationReason(status?: Record<string, any> | null, shipping?: string | null) {
+  const phase = shipping || remoteShipping(status);
+  if (!closedOrder(phase)) return '';
+  const fields =
+    phase === 'returned' ? ['return_reason', 'cancellation_reason'] : ['cancellation_reason'];
+  for (const key of fields) {
+    const value = status?.[key];
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 2000);
+  }
+  return '';
+}
 // Call attempts describe work still in progress, never a cancelled or delivered order.
 export function activeCallStatus(status?: Record<string, any> | null, local?: string) {
   const shipping = remoteShipping(status);

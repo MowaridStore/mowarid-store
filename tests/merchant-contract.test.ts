@@ -82,6 +82,22 @@ it('preserves the validated quote proof wrapper and billed financials used by ad
   expect(result?.raw?.validation.reason).toBe('Approved');
   expect(JSON.stringify(result)).not.toMatch(/private|internal_platform/);
 });
+it('retains explicit cancellation and return reasons without accepting nested private records', () => {
+  expect(
+    merchantOrder({
+      status: {
+        cancellation_reason: 'Cancelled',
+        return_reason: 'Returned',
+        internal_note: 'private',
+      },
+    })?.status,
+  ).toEqual({ cancellation_reason: 'Cancelled', return_reason: 'Returned' });
+  expect(
+    merchantOrder({
+      status: { cancellation_reason: { private: true }, return_reason: ['private'] },
+    })?.status,
+  ).toEqual({});
+});
 it('exposes catalog marketing and affiliate prices without forwarding arbitrary supplier contacts or keys', () => {
   const result = merchantCatalog({
     sku: 'OWN',

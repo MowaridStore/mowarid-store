@@ -2833,6 +2833,8 @@ describe('real Worker runtime and D1 transactions', () => {
         shipping_status: 'cancelled',
         order_status: 'cancelled',
         call_status: 'pending',
+        cancellation_reason: 'Customer denies placing the order',
+        internal_note: 'private-supplier-note',
       },
       financials: {
         currency: 'MAD',
@@ -2848,6 +2850,9 @@ describe('real Worker runtime and D1 transactions', () => {
     const saved = (await order(env.DB, o.id))!;
     expect(saved.quote).toBe(original);
     expect(saved.last_error).toBeNull();
+    const view = (await (await req('/admin/orders/' + o.id, undefined, true)).json()) as any;
+    expect(view.remote.status.cancellation_reason).toBe('Customer denies placing the order');
+    expect(view.remote.status).not.toHaveProperty('internal_note');
     expect(parsedOrder(saved)).toMatchObject({
       financial_status: 'cancelled',
       pricing: {

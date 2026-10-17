@@ -10,7 +10,40 @@ import {
   statusTone,
   postponementNote,
   postponementDate,
+  cancellationReason,
 } from '../src/shared/order-status';
+it('uses explicit closed-order reasons and never substitutes customer, call or hold notes', () => {
+  const status = {
+    shipping_status: 'cancelled',
+    cancellation_reason: '  Customer denies placing the order  ',
+  };
+  expect(cancellationReason(status)).toBe('Customer denies placing the order');
+  expect(cancellationReason({ ...status, shipping_status: 'pending' })).toBe('');
+  expect(cancellationReason(status, 'delivered')).toBe('');
+  expect(cancellationReason({ order_status: 'cancelled', cancellation_reason: 'Reason' })).toBe(
+    'Reason',
+  );
+  expect(
+    cancellationReason({ ...status, shipping_status: 'returned', return_reason: 'Damaged' }),
+  ).toBe('Damaged');
+  expect(cancellationReason({ ...status, shipping_status: 'returned', return_reason: ' ' })).toBe(
+    'Customer denies placing the order',
+  );
+  for (const value of [null, undefined, '', '  ', {}, ['Reason'], true, 17])
+    expect(
+      cancellationReason({
+        shipping_status: 'cancelled',
+        cancellation_reason: value,
+        notes: 'Delivery note',
+        hold_reason: 'Hold',
+        postponed_note: 'Call later',
+      }),
+    ).toBe('');
+  expect(cancellationReason()).toBe('');
+  expect(
+    cancellationReason({ shipping_status: 'cancelled', cancellation_reason: 'x'.repeat(3000) }),
+  ).toHaveLength(2000);
+});
 it('displays the provider’s postponement date without guessing one from the call timestamp', () => {
   expect(postponementNote({ call_status: 'postponed', postponed_note: '15/10/2026' })).toBe(
     '15/10/2026',

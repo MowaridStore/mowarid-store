@@ -1,4 +1,12 @@
 {
+  "سبب الإلغاء / الإرجاع": {
+    "en": "Cancellation / return reason",
+    "fr": "Motif d’annulation / de retour"
+  },
+  "لم يرسل مورد سبب الإلغاء أو الإرجاع عبر الربط بعد.": {
+    "en": "Mowarid has not provided the cancellation or return reason through the integration yet.",
+    "fr": "Mowarid n’a pas encore transmis le motif d’annulation ou de retour via l’intégration."
+  },
   "تعذر إتمام العملية.": {
     "en": "Unable to complete the operation.",
     "fr": "Impossible de terminer l’opération."

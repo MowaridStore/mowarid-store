@@ -54,6 +54,8 @@ export function merchantOrder(value: unknown): Record<string, any> | null {
             'financial_status',
             'financial_status_label',
             'hold_reason',
+            'cancellation_reason',
+            'return_reason',
             'commission_ready_at',
           ]),
         }

@@ -4904,6 +4904,23 @@ td p {
   display: grid;
   gap: 16px;
 }
+.order-cancellation-reason {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #b42318;
+}
+.order-cancellation-reason h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.order-cancellation-reason p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .order-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

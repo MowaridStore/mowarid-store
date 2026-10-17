@@ -55,6 +55,17 @@ const fixture = {
   },
 };
 async function prepare(page: Page, row: any, ip: string) {
+  if ((await (await page.request.get('/api/auth/status')).json()).setup) {
+    const token = (await readFile('.dev.vars', 'utf8')).match(/^SETUP_TOKEN=(.+)$/m)![1];
+    expect(
+      (
+        await page.request.post('/api/auth/setup', {
+          headers: { Origin: 'http://localhost:8788' },
+          data: { email: 'owner@example.test', password: 'local-admin-test-password-2026', token },
+        })
+      ).ok(),
+    ).toBe(true);
+  }
   const login = await page.request.post('/api/auth/login', {
     headers: { Origin: 'http://localhost:8788', 'CF-Connecting-IP': ip },
     data: { email: 'owner@example.test', password: 'local-admin-test-password-2026' },
@@ -103,6 +114,7 @@ test('calls and actions are visible, coloured and customer receipts download as 
   await dialog.getByRole('button', { name: 'إغلاق', exact: true }).last().click();
   await row.getByRole('button', { name: 'التفاصيل', exact: true }).click();
   await expect(page.getByText('آخر تحديث', { exact: true })).toBeVisible();
+  await expect(page.locator('.order-cancellation-reason')).toHaveCount(0);
   await expect(page.getByText('آخر محاولة اتصال', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'تتبع الطلب بمورد', exact: true })).toHaveAttribute(
     'href',
@@ -129,7 +141,12 @@ test('cancelled orders keep receipt prices, show red status and never pending ca
     last_error: 'remote_cod_changed',
     remote: {
       ...fixture.remote,
-      status: { ...fixture.remote.status, order_status: 'cancelled', call_status: 'pending' },
+      status: {
+        ...fixture.remote.status,
+        order_status: 'cancelled',
+        call_status: 'pending',
+        cancellation_reason: 'الزبون ينكر الطلب (لم يسبق له الطلب) <img src=x onerror=alert(1)>',
+      },
       financials: {
         products_subtotal: 0,
         customer_shipping_fee: 0,
@@ -150,16 +167,43 @@ test('cancelled orders keep receipt prices, show red status and never pending ca
   await expect(page.getByText('متابعة الاتصال لدى مورد', { exact: true })).toHaveCount(0);
   await expect(page.getByText('بانتظار بدء الاتصال', { exact: true })).toHaveCount(0);
   await expect(page.locator('.customer-order-pricing')).toContainText('278');
+  await expect(page.locator('.order-cancellation-reason')).toContainText(
+    'الزبون ينكر الطلب (لم يسبق له الطلب) <img src=x onerror=alert(1)>',
+  );
+  await expect(page.locator('.order-cancellation-reason img')).toHaveCount(0);
   await page.getByRole('button', { name: 'وصل الشراء', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'وصل الشراء للزبون', exact: true });
   await expect(
     dialog.getByText('طلب ملغى / مرتجع · لا يوجد مبلغ مطلوب من الزبون', { exact: true }),
   ).toBeVisible();
   await expect(dialog.locator('.receipt-totals')).toContainText('278');
+  await expect(dialog).not.toContainText('الزبون ينكر الطلب');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'وصل الشراء', exact: true })).toBeFocused();
+});
+test('a missing provider reason is stated clearly in cancelled order details on desktop and mobile', async ({
+  page,
+}) => {
+  const cancelled = {
+    ...fixture,
+    shipping_status: 'cancelled',
+    financial_status: 'cancelled',
+    remote: { ...fixture.remote, status: { order_status: 'cancelled' } },
+  };
+  await prepare(page, cancelled, '198.18.22.4');
+  await page.getByRole('button', { name: 'التفاصيل', exact: true }).click();
+  await expect(page.locator('.order-cancellation-reason')).toContainText(
+    'لم يرسل مورد سبب الإلغاء أو الإرجاع عبر الربط بعد.',
+  );
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator('.order-cancellation-reason')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
 });
 test('receipt labels and layout follow the independently selected administration language', async ({
   page,
