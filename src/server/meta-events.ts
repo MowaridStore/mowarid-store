@@ -5,13 +5,14 @@ import { storeOriginProof } from './campaign-origin';
 import { META_GRAPH_VERSION } from './meta';
 import { DomainError } from '../shared/domain';
 import { RemoteError } from './mowarid';
+import { metaPixelIds, metaCredentialName, metaHealthName } from '../shared/meta-pixels';
 
 export type MetaEvent = {
-  event_name: 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Lead';
+  event_name: 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Lead' | 'Purchase';
   event_id: string;
   event_time: number;
-  action_source: 'website';
-  event_source_url: string;
+  action_source: 'website' | 'other';
+  event_source_url?: string;
   user_data: Record<string, string | string[]>;
   custom_data?: Record<string, unknown>;
 };
@@ -44,27 +45,36 @@ export async function validMetaTicket(env: Env, requestUrl: string, pixel: strin
   if (expires < Date.now() || expires > Date.now() + 2 * 3600000) return false;
   return constantEqual(ticket, await metaTicket(env, requestUrl, pixel, expires));
 }
-export async function metaConfigured(env: Env) {
+export async function metaConfiguredPixels(env: Env) {
   const s = await settings(env.DB);
-  return s.trackingEnabled && s.facebookPixel && (await credential(env, 'meta'))
-    ? s.facebookPixel
-    : '';
+  if (!s.trackingEnabled) return [];
+  const configured = await Promise.all(
+    metaPixelIds(s).map(async (pixel) =>
+      (await credential(env, metaCredentialName(s, pixel))) ? pixel : '',
+    ),
+  );
+  return configured.filter(Boolean);
 }
 export async function metaEventStatement(env: Env, pixel: string, event: MetaEvent) {
+  // Bound anonymous web traffic per destination. One failing destination must
+  // not exhaust another's queue, or drop a server-authoritative saved sale/lead.
   return env.DB.prepare(
-    "INSERT OR IGNORE INTO meta_events(id,pixel_id,payload,run_at,created_at) SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM meta_events WHERE status IN ('pending','running'))<5000",
+    "INSERT OR IGNORE INTO meta_events(id,pixel_id,payload,run_at,created_at) SELECT ?,?,?,?,? WHERE ?=1 OR (SELECT COUNT(*) FROM meta_events WHERE pixel_id=? AND status IN ('pending','running'))<5000",
   ).bind(
     pixel + ':' + event.event_name + ':' + event.event_id,
     pixel,
     await encryptSecret(env, JSON.stringify(event)),
     Date.now(),
     Date.now(),
+    event.event_name === 'Lead' || event.event_name === 'Purchase' ? 1 : 0,
+    pixel,
   );
 }
 export async function sendMetaEvent(env: Env, pixel: string, event: MetaEvent, testCode?: string) {
   const s = await settings(env.DB),
-    token = await credential(env, 'meta');
-  if (!s.trackingEnabled || !pixel || s.facebookPixel !== pixel || !token)
+    name = metaCredentialName(s, pixel),
+    token = name ? await credential(env, name) : '';
+  if (!s.trackingEnabled || !metaPixelIds(s).includes(pixel) || !token)
     throw new RemoteError('meta_not_configured', false);
   let response: Response;
   try {
@@ -89,7 +99,7 @@ export async function sendMetaEvent(env: Env, pixel: string, event: MetaEvent, t
   };
   const fingerprint = await digest(pixel + ':' + token);
   if (!response.ok || body.events_received !== 1) {
-    await setState(env.DB, 'meta_health', {
+    await setState(env.DB, metaHealthName(s, pixel), {
       fingerprint,
       checkedAt: now(),
       errorCode: body.error?.code || response.status,
@@ -99,7 +109,7 @@ export async function sendMetaEvent(env: Env, pixel: string, event: MetaEvent, t
       response.status >= 500 || response.status === 429,
     );
   }
-  await setState(env.DB, 'meta_health', {
+  await setState(env.DB, metaHealthName(s, pixel), {
     fingerprint,
     checkedAt: now(),
     lastSuccess: now(),
@@ -108,8 +118,8 @@ export async function sendMetaEvent(env: Env, pixel: string, event: MetaEvent, t
   return { accepted: true, test: !!testCode };
 }
 export async function flushMetaEvents(env: Env, max = 3) {
-  const pixel = await metaConfigured(env);
-  if (!pixel) return;
+  const pixels = await metaConfiguredPixels(env);
+  if (!pixels.length) return;
   for (let index = 0; index < max; index++) {
     const lease = crypto.randomUUID();
     const row = await env.DB.prepare(
@@ -125,10 +135,10 @@ export async function flushMetaEvents(env: Env, max = 3) {
       }>();
     if (!row) break;
     try {
-      if (row.pixel_id !== pixel) throw new RemoteError('meta_pixel_changed', false);
+      if (!pixels.includes(row.pixel_id)) throw new RemoteError('meta_pixel_changed', false);
       if (Date.now() - row.created_at > 6 * 86400000)
         throw new RemoteError('meta_event_expired', false);
-      await sendMetaEvent(env, pixel, JSON.parse(await decryptSecret(env, row.payload)));
+      await sendMetaEvent(env, row.pixel_id, JSON.parse(await decryptSecret(env, row.payload)));
       await env.DB.prepare(
         "UPDATE meta_events SET status='sent',payload=NULL,lease_until=0,last_error=NULL WHERE id=? AND lease_token=?",
       )
@@ -151,12 +161,14 @@ export async function flushMetaEvents(env: Env, max = 3) {
     }
   }
 }
-export async function retryMetaEvents(env: Env) {
-  const pixel = await metaConfigured(env);
-  if (!pixel) return;
-  await env.DB.prepare(
-    "UPDATE meta_events SET status='pending',attempts=0,run_at=?,lease_until=0,last_error=NULL WHERE status='failed' AND pixel_id=? AND created_at>?",
-  )
-    .bind(Date.now(), pixel, Date.now() - 6 * 86400000)
-    .run();
+export async function retryMetaEvents(env: Env, selected?: string) {
+  const pixels = (await metaConfiguredPixels(env)).filter((p) => !selected || p === selected);
+  if (!pixels.length) return;
+  await env.DB.batch(
+    pixels.map((pixel) =>
+      env.DB.prepare(
+        "UPDATE meta_events SET status='pending',attempts=0,run_at=?,lease_until=0,last_error=NULL WHERE status='failed' AND pixel_id=? AND created_at>?",
+      ).bind(Date.now(), pixel, Date.now() - 6 * 86400000),
+    ),
+  );
 }

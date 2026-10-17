@@ -3,6 +3,7 @@ import { productSort, sortedProducts } from '../shared/product-sort';
 import { localizedCategory } from '../shared/i18n';
 import { productDeliveryText } from '../shared/product-info';
 import { typographyStyle } from '../shared/typography';
+import { metaPixelIds } from '../shared/meta-pixels';
 import { pricedProduct, promotionClock, promotionRemaining, tailPricing } from '../shared/commerce';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
@@ -125,6 +126,7 @@ export function Layout({
     shippingOther: s.shippingOther,
     cartFreeShippingThreshold: s.cartFreeShippingThreshold,
     facebookPixel: s.facebookPixel,
+    facebookPixels: metaPixelIds(s),
     tiktokPixel: s.tiktokPixel,
     googleId: s.googleId,
     snapPixel: s.snapPixel,

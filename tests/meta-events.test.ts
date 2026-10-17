@@ -3,8 +3,11 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { defaults } from '../src/shared/types';
+import { settingsSchema } from '../src/server/schemas';
+import { metaPixelIds } from '../src/shared/meta-pixels';
+import { metaPurchase } from '../src/server/jobs';
 import type { Env } from '../src/server/db';
-import { state } from '../src/server/db';
+import { state, order } from '../src/server/db';
 import { saveCredential, decryptSecret } from '../src/server/security';
 import {
   metaTicket,
@@ -35,9 +38,9 @@ const event = (): MetaEvent => ({
     fbp: 'fb.1.123.456',
   },
 });
-const request = (path: string, body?: unknown, admin = false) =>
+const request = (path: string, body?: unknown, admin = false, method = body ? 'POST' : 'GET') =>
   mf.dispatchFetch(origin + '/api' + path, {
-    method: body ? 'POST' : 'GET',
+    method,
     headers: {
       Origin: origin,
       'Content-Type': 'application/json',
@@ -315,4 +318,190 @@ it('does not send events when tracking is disabled and records permanent token f
   await flushMetaEvents(env);
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(await (await request('/meta/bootstrap')).json()).toEqual({ enabled: false });
+});
+
+const secondary = {
+  id: '18be9ee0-a36c-4b61-898d-92e94e741bd3',
+  pixel: '654321',
+  label: 'Second account',
+  enabled: true,
+};
+const secondaryToken = 'second-authorized-capi-token-fixture';
+async function configureSecondary() {
+  const current = (await (await request('/admin/settings', undefined, true)).json()) as any;
+  const updated = { ...current.settings, facebookAdditionalPixels: [secondary] };
+  expect((await request('/admin/settings', updated, true, 'PUT')).status).toBe(200);
+  expect(
+    (
+      await request(
+        '/admin/credentials',
+        { metaPixel: secondary.pixel, meta: secondaryToken },
+        true,
+        'PUT',
+      )
+    ).status,
+  ).toBe(200);
+  return updated;
+}
+it('validates distinct destinations, preserves them for legacy settings clients and never exposes CAPI tokens', async () => {
+  const updated = await configureSecondary();
+  expect(metaPixelIds(updated)).toEqual(['123456', '654321']);
+  expect(
+    settingsSchema.safeParse({
+      ...updated,
+      facebookAdditionalPixels: [{ ...secondary, pixel: '123456' }],
+    }).success,
+  ).toBe(false);
+  expect(
+    settingsSchema.safeParse({ ...updated, facebookAdditionalPixels: [secondary, secondary] })
+      .success,
+  ).toBe(false);
+  expect(settingsSchema.safeParse({ ...updated, facebookPixel: '' }).success).toBe(false);
+  const legacy = { ...updated } as any;
+  delete legacy.facebookAdditionalPixels;
+  expect((await request('/admin/settings', legacy, true, 'PUT')).status).toBe(200);
+  const saved = (await (await request('/admin/settings', undefined, true)).json()) as any;
+  expect(saved.settings.facebookAdditionalPixels).toEqual([secondary]);
+  expect(JSON.stringify(saved)).not.toContain(secondaryToken);
+  expect(saved.credentials).toContain('meta:654321');
+  const row = await env.DB.prepare(
+    "SELECT encrypted FROM credentials WHERE name='meta:654321'",
+  ).first<any>();
+  expect(row.encrypted).not.toContain(secondaryToken);
+  expect(await decryptSecret(env, row.encrypted)).toBe(secondaryToken);
+  expect(
+    (
+      await request(
+        '/admin/credentials',
+        { metaPixel: '999999', meta: secondaryToken },
+        true,
+        'PUT',
+      )
+    ).status,
+  ).toBe(400);
+  const publicPage = await (await mf.dispatchFetch(origin + '/')).text();
+  expect(publicPage).toContain('654321');
+  expect(publicPage).not.toContain(secondaryToken);
+  expect(publicPage).not.toContain('Second account');
+  expect(
+    (await request('/admin/settings', { ...updated, facebookAdditionalPixels: [] }, true, 'PUT'))
+      .status,
+  ).toBe(200);
+  expect(
+    await env.DB.prepare("SELECT encrypted FROM credentials WHERE name='meta:654321'").first(),
+  ).toBeNull();
+});
+it('isolates destination credentials, failures and receipts while sharing browser/server event IDs', async () => {
+  await configureSecondary();
+  const bootstrap = (await (await request('/meta/bootstrap')).json()) as any;
+  expect(bootstrap.pixels.map((p: any) => p.pixel)).toEqual(['123456', '654321']);
+  expect(JSON.stringify(bootstrap)).not.toContain(secondaryToken);
+  const e = event();
+  for (const pixel of ['123456', '654321']) await (await metaEventStatement(env, pixel, e)).run();
+  const fetch = vi.fn(async (url: string, init: RequestInit) => {
+    const isPrimary = url.includes('/123456/events');
+    expect((init.headers as any).Authorization).toBe(
+      'Bearer ' + (isPrimary ? token : secondaryToken),
+    );
+    expect(JSON.parse(init.body as string).data[0].event_id).toBe(e.event_id);
+    return isPrimary
+      ? Response.json({ events_received: 1 })
+      : Response.json({ error: { code: 190 } }, { status: 400 });
+  });
+  vi.stubGlobal('fetch', fetch);
+  await flushMetaEvents(env, 10);
+  const rows = await env.DB.prepare(
+    'SELECT pixel_id,status,last_error FROM meta_events ORDER BY pixel_id',
+  ).all<any>();
+  expect(rows.results).toEqual([
+    { pixel_id: '123456', status: 'sent', last_error: null },
+    { pixel_id: '654321', status: 'failed', last_error: 'meta_rejected_190' },
+  ]);
+  expect((await state(env.DB, 'meta_health')).errorCode).toBeNull();
+  expect((await state(env.DB, 'meta_health:654321')).errorCode).toBe(190);
+  // No second primary send when another destination fails or is retried.
+  await flushMetaEvents(env, 10);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  const newTicket = await metaTicket(env, origin, '654321');
+  expect(await validMetaTicket(env, origin, '123456', newTicket)).toBe(false);
+  await env.DB.prepare(
+    "UPDATE settings SET json=json_set(json,'$.facebookAdditionalPixels[0].enabled',json('false'))",
+  ).run();
+  expect(((await (await request('/meta/bootstrap')).json()) as any).pixels).toBeUndefined();
+  await expect(sendMetaEvent(env, '654321', e)).rejects.toMatchObject({
+    code: 'meta_not_configured',
+  });
+});
+it('sends one Lead and one delivered Purchase per destination without letting a primary rejection block the other', async () => {
+  await configureSecondary();
+  // The worker outbound mock confirms per-destination authentication too.
+  const sharedToken = token;
+  await saveCredential(env, 'meta:654321', sharedToken);
+  const cart = [{ productId: 'demo-bag', offerId: '', quantity: 1, revision: 1 }];
+  const quote = (await (await request('/checkout/quote', { cart, city: 'Rabat' })).json()) as any;
+  const body = {
+    cart,
+    customer: {
+      name: 'Test Customer',
+      phone: '0612345678',
+      city: 'Rabat',
+      address: 'Test address',
+      notes: '',
+    },
+    fingerprint: quote.fingerprint,
+    idempotency: crypto.randomUUID(),
+    matching: { path: '/offers/daily-bag' },
+  };
+  const result = await request('/orders', body);
+  expect(result.status).toBe(201);
+  const ref = ((await result.json()) as any).ref;
+  await vi.waitFor(() =>
+    expect(received.filter((r) => r.body.data[0].event_name === 'Lead')).toHaveLength(2),
+  );
+  expect(new Set(received.map((r) => r.body.data[0].event_id))).toEqual(new Set(['lead:' + ref]));
+  expect(new Set(received.map((r) => r.url.split('/').at(-2)))).toEqual(
+    new Set(['123456', '654321']),
+  );
+  expect((await request('/orders', body)).status).toBe(200);
+  const row = await env.DB.prepare('SELECT id FROM orders WHERE ref=?').bind(ref).first<any>();
+  const original = (await order(env.DB, row.id))!;
+  await expect(metaPurchase(env, original)).rejects.toMatchObject({
+    code: 'purchase_requires_delivery',
+  });
+  const delivered = {
+    ...original,
+    shipping_status: 'delivered',
+    delivered_at: new Date().toISOString(),
+  };
+  const fetch = vi.fn(async (url: string, init: RequestInit) => {
+    const data = JSON.parse(init.body as string).data[0];
+    expect(data.event_name).toBe('Purchase');
+    expect(data.event_id).toBe('purchase:' + original.id);
+    return url.includes('/123456/')
+      ? Response.json({ error: { code: 190 } }, { status: 400 })
+      : Response.json({ events_received: 1 });
+  });
+  vi.stubGlobal('fetch', fetch);
+  await expect(metaPurchase(env, delivered)).rejects.toMatchObject({ code: 'meta_rejected_400' });
+  await expect(metaPurchase(env, delivered)).rejects.toMatchObject({ code: 'meta_rejected_400' });
+  expect(fetch.mock.calls.filter(([url]) => url.includes('/654321/'))).toHaveLength(1);
+  expect(
+    await env.DB.prepare('SELECT pixel_id,status,payload FROM meta_events WHERE id=?')
+      .bind('654321:Purchase:purchase:' + original.id)
+      .first(),
+  ).toEqual({ pixel_id: '654321', status: 'sent', payload: null });
+});
+
+it('keeps an exhausted destination from starving another and reserves authoritative order events', async () => {
+  await configureSecondary();
+  await env.DB.exec(
+    "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<5000) INSERT INTO meta_events(id,pixel_id,payload,run_at,created_at) SELECT '654321:PageView:fixture-'||x,'654321','fixture',0,0 FROM n",
+  );
+  const e = event();
+  expect((await (await metaEventStatement(env, '654321', e)).run()).meta.changes).toBe(0);
+  expect((await (await metaEventStatement(env, '123456', e)).run()).meta.changes).toBe(1);
+  expect(
+    (await (await metaEventStatement(env, '654321', { ...e, event_name: 'Lead' })).run()).meta
+      .changes,
+  ).toBe(1);
 });

@@ -52,10 +52,11 @@ import {
   callLabels,
 } from '../shared/order-status';
 import { META_GRAPH_VERSION } from './meta';
+import { metaPixelIds, metaCredentialName, metaHealthName } from '../shared/meta-pixels';
 import { storeIdentity } from './store-identity';
 import { campaignOriginAllowed, storeOriginProof } from './campaign-origin';
 import {
-  metaConfigured,
+  metaConfiguredPixels,
   metaTicket,
   validMetaTicket,
   metaPageUrl,
@@ -172,6 +173,10 @@ async function makeQuote(
   return { ...value, fingerprint: await digest(JSON.stringify(value)) };
 }
 const credentialsSchema = z.object({
+  metaPixel: z
+    .string()
+    .regex(/^\d{5,30}$/)
+    .optional(),
   mowarid: z
     .string()
     .regex(/^$|^mw_live_[a-zA-Z0-9_-]+$/)
@@ -254,12 +259,16 @@ api.get('/auth/status', async (c) => {
 });
 api.get('/meta/bootstrap', async (c) => {
   await rate(c, 120, 60, 'meta_bootstrap');
-  const pixel = await metaConfigured(c.env);
-  return c.json(
-    pixel
-      ? { enabled: true, pixel, ticket: await metaTicket(c.env, c.req.url, pixel) }
-      : { enabled: false },
+  const pixels = await metaConfiguredPixels(c.env);
+  if (!pixels.length) return c.json({ enabled: false });
+  const destinations = await Promise.all(
+    pixels.map(async (pixel) => ({ pixel, ticket: await metaTicket(c.env, c.req.url, pixel) })),
   );
+  return c.json({
+    enabled: true,
+    ...destinations[0],
+    ...(destinations.length > 1 ? { pixels: destinations } : {}),
+  });
 });
 api.post('/meta/events', async (c) => {
   await rate(c, 120, 60, 'meta_events');
@@ -275,9 +284,10 @@ api.post('/meta/events', async (c) => {
     })
     .strict()
     .parse(await c.req.json());
-  const pixel = await metaConfigured(c.env);
-  if (!pixel) return c.json({ queued: false });
-  if (body.pixel !== pixel || !(await validMetaTicket(c.env, c.req.url, pixel, body.ticket)))
+  const pixels = await metaConfiguredPixels(c.env),
+    pixel = body.pixel;
+  if (!pixels.length) return c.json({ queued: false });
+  if (!pixels.includes(pixel) || !(await validMetaTicket(c.env, c.req.url, pixel, body.ticket)))
     throw new DomainError('tracking_expired', 'أعد تحميل الصفحة لتحديث التتبع.', 403);
   const event_source_url = metaPageUrl(c.req.url, body.path);
   const result = await (
@@ -742,34 +752,32 @@ api.post('/orders', async (c) => {
         ]
       : []),
   ];
-  const metaPixel =
-    s.trackingEnabled && s.facebookPixel && (await credential(c.env, 'meta'))
-      ? s.facebookPixel
-      : '';
-  if (metaPixel) {
+  const metaPixels = await metaConfiguredPixels(c.env);
+  if (metaPixels.length) {
     let source: string;
     try {
       source = metaPageUrl(c.req.url, b.matching.path || '/checkout');
     } catch {
       source = new URL(c.req.url).origin + '/checkout';
     }
-    statements.push(
-      await metaEventStatement(c.env, metaPixel, {
-        event_name: 'Lead',
-        event_id: 'lead:' + ref,
-        event_time: Math.floor(Date.now() / 1000),
-        action_source: 'website',
-        event_source_url: source,
-        user_data: {
-          ph: [await digest('212' + customer.phone.slice(1))],
-          ...(matching.fbp ? { fbp: matching.fbp } : {}),
-          ...(matching.fbc ? { fbc: matching.fbc } : {}),
-          ...(matching.ip ? { client_ip_address: matching.ip } : {}),
-          ...(matching.agent ? { client_user_agent: matching.agent } : {}),
-        },
-        custom_data: { currency: 'MAD', value: q.total / 100 },
-      }),
-    );
+    for (const metaPixel of metaPixels)
+      statements.push(
+        await metaEventStatement(c.env, metaPixel, {
+          event_name: 'Lead',
+          event_id: 'lead:' + ref,
+          event_time: Math.floor(Date.now() / 1000),
+          action_source: 'website',
+          event_source_url: source,
+          user_data: {
+            ph: [await digest('212' + customer.phone.slice(1))],
+            ...(matching.fbp ? { fbp: matching.fbp } : {}),
+            ...(matching.fbc ? { fbc: matching.fbc } : {}),
+            ...(matching.ip ? { client_ip_address: matching.ip } : {}),
+            ...(matching.agent ? { client_user_agent: matching.agent } : {}),
+          },
+          custom_data: { currency: 'MAD', value: q.total / 100 },
+        }),
+      );
   }
   try {
     await c.env.DB.batch(statements);
@@ -780,7 +788,7 @@ api.post('/orders', async (c) => {
     if (raced?.request_hash === requestHash) return c.json({ ref: raced.ref });
     throw e;
   }
-  if (metaPixel) c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
+  if (metaPixels.length) c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
   if (s.autoConfirm) await dispatchSubmission(c.env, id);
   return c.json({ ref }, 201);
 });
@@ -1057,6 +1065,36 @@ api.get('/admin/pixels/status', async (c) => {
     lastSuccess: string | null;
   }>();
   return c.json({
+    additional: await Promise.all(
+      configured.facebookAdditionalPixels.map(async (destination) => {
+        const pixel = destination.pixel,
+          name = metaCredentialName(configured, pixel);
+        const token = await credential(c.env, name),
+          health = await state(c.env.DB, metaHealthName(configured, pixel));
+        const current =
+          token && health?.fingerprint === (await digest(pixel + ':' + token)) ? health : null;
+        return {
+          ...destination,
+          saved: !!token,
+          connection: !destination.enabled
+            ? 'disabled'
+            : !token
+              ? 'not_configured'
+              : current?.errorCode
+                ? 'rejected'
+                : current?.lastSuccess
+                  ? 'connected'
+                  : 'awaiting_event',
+          errorCode: current?.errorCode || null,
+          lastSuccess: current?.lastSuccess || null,
+          events: await c.env.DB.prepare(
+            "SELECT COUNT(CASE WHEN status='sent' THEN 1 END) sent,COUNT(CASE WHEN status IN ('pending','running') THEN 1 END) pending,COUNT(CASE WHEN status='failed' THEN 1 END) failed FROM meta_events WHERE pixel_id=?",
+          )
+            .bind(pixel)
+            .first(),
+        };
+      }),
+    ),
     web: await c.env.DB.prepare(
       "SELECT COUNT(CASE WHEN status='sent' THEN 1 END) sent,COUNT(CASE WHEN status IN ('pending','running') THEN 1 END) pending,COUNT(CASE WHEN status='failed' THEN 1 END) failed FROM meta_events WHERE pixel_id=?",
     )
@@ -1081,11 +1119,19 @@ api.get('/admin/pixels/status', async (c) => {
 });
 api.post('/admin/pixels/test', async (c) => {
   await rate(c, 10, 60, 'meta_test');
-  const { testEventCode } = z
-    .object({ testEventCode: z.string().regex(/^TEST\d{3,20}$/) })
+  const { testEventCode, pixel: selected } = z
+    .object({
+      testEventCode: z.string().regex(/^TEST\d{3,20}$/),
+      pixel: z
+        .string()
+        .regex(/^\d{5,30}$/)
+        .optional(),
+    })
     .parse(await c.req.json());
-  const pixel = await metaConfigured(c.env);
-  if (!pixel) throw new DomainError('meta_not_configured', 'احفظ معرّف البكسل ورمز CAPI أولًا.');
+  const configured = await metaConfiguredPixels(c.env);
+  const pixel = selected || (await settings(c.env.DB)).facebookPixel;
+  if (!configured.includes(pixel))
+    throw new DomainError('meta_not_configured', 'احفظ معرّف البكسل ورمز CAPI أولًا.');
   try {
     return c.json(
       await sendMetaEvent(
@@ -1118,8 +1164,17 @@ api.post('/admin/pixels/test', async (c) => {
   }
 });
 api.post('/admin/pixels/retry', async (c) => {
-  await retryPurchaseEvents(c.env);
-  await retryMetaEvents(c.env);
+  const { pixel } = z
+    .object({
+      pixel: z
+        .string()
+        .regex(/^\d{5,30}$/)
+        .optional(),
+    })
+    .parse(await c.req.json());
+  if (!pixel || pixel === (await settings(c.env.DB)).facebookPixel)
+    await retryPurchaseEvents(c.env);
+  await retryMetaEvents(c.env, pixel);
   c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
   return c.json({ ok: true });
 });
@@ -1208,6 +1263,10 @@ api.put('/admin/settings', async (c) => {
   if (!Object.hasOwn(body, 'productInfo')) s.productInfo = old.productInfo;
   if (!Object.hasOwn(body, 'branding')) s.branding = old.branding;
   if (!Object.hasOwn(body, 'typography')) s.typography = old.typography;
+  if (!Object.hasOwn(body, 'facebookAdditionalPixels')) {
+    s.facebookAdditionalPixels = old.facebookAdditionalPixels;
+    settingsSchema.parse(s);
+  }
   if (!body.home || !Object.hasOwn(body.home, 'showNavigation'))
     s.home.showNavigation = old.home.showNavigation;
   if (!body.home || !Object.hasOwn(body.home, 'showSearch'))
@@ -1264,12 +1323,22 @@ api.put('/admin/settings', async (c) => {
   }
   s.checkoutOffers = [];
   s.contractVerified = old.contractVerified && s.supplierField === old.supplierField;
-  s.trackingEnabled = !!(s.facebookPixel || s.tiktokPixel || s.googleId || s.snapPixel);
+  s.trackingEnabled = !!(metaPixelIds(s).length || s.tiktokPixel || s.googleId || s.snapPixel);
   const stmts = [
     c.env.DB.prepare(
       'INSERT INTO settings VALUES(1,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json',
     ).bind(JSON.stringify(s)),
   ];
+  for (const removed of old.facebookAdditionalPixels.filter(
+    (p) => !s.facebookAdditionalPixels.some((next) => next.pixel === p.pixel),
+  )) {
+    stmts.push(
+      c.env.DB.prepare('DELETE FROM credentials WHERE name=?').bind('meta:' + removed.pixel),
+    );
+    stmts.push(
+      c.env.DB.prepare('DELETE FROM sync_state WHERE name=?').bind('meta_health:' + removed.pixel),
+    );
+  }
   if (s.supplierField !== old.supplierField)
     stmts.push(c.env.DB.prepare('UPDATE products SET verified=0,revision=revision+1'));
   await c.env.DB.batch(stmts);
@@ -1285,9 +1354,13 @@ api.put('/admin/settings', async (c) => {
 });
 api.put('/admin/credentials', async (c) => {
   const b = credentialsSchema.parse(await c.req.json());
+  const configured = await settings(c.env.DB);
+  const selectedMeta = b.metaPixel ? metaCredentialName(configured, b.metaPixel) : 'meta';
+  if (b.metaPixel && !selectedMeta)
+    throw new DomainError('meta_not_configured', 'احفظ معرّف البكسل أولًا.');
   for (const [k, v] of Object.entries(b))
-    if (v) {
-      await saveCredential(c.env, k, v);
+    if (v && k !== 'metaPixel') {
+      await saveCredential(c.env, k === 'meta' ? selectedMeta : k, v);
       if (k === 'mowarid') {
         const s = await settings(c.env.DB);
         s.contractVerified = false;
@@ -1316,8 +1389,8 @@ api.put('/admin/credentials', async (c) => {
     }
   }
   if (b.meta) {
-    await retryPurchaseEvents(c.env);
-    await retryMetaEvents(c.env);
+    if (selectedMeta === 'meta') await retryPurchaseEvents(c.env);
+    await retryMetaEvents(c.env, b.metaPixel || configured.facebookPixel);
     c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
   }
   return c.json({ ok: true });

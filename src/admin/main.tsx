@@ -1,4 +1,5 @@
 import { Analytics } from './analytics';
+import { MAX_ADDITIONAL_META_PIXELS } from '../shared/meta-pixels';
 import { campaignSourceNames as sourceNames } from '../shared/campaigns';
 import { BundlesEditor } from './bundles';
 import { BulkImporter } from './bulk-import';
@@ -1075,6 +1076,8 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
     [pixelStatus, setPixelStatus] = useState<any>(null),
     [metaTestCode, setMetaTestCode] = useState(''),
     [testingMeta, setTestingMeta] = useState(false),
+    [additionalSecrets, setAdditionalSecrets] = useState<Record<string, string>>({}),
+    [additionalTests, setAdditionalTests] = useState<Record<string, string>>({}),
     [integrationStatus, setIntegrationStatus] = useState<any>(null);
   const refreshPixelStatus = async () => setPixelStatus(await api('/admin/pixels/status'));
   const load = async () => {
@@ -1178,10 +1181,19 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
     if (freeShippingEnabled && s.cartFreeShippingThreshold <= 0)
       throw new Error(t('أدخل مبلغًا أكبر من صفر لتفعيل الشحن المجاني للسلة.'));
     await api('/admin/settings', { ...s, adminLanguage: adminLanguage() }, 'PUT');
-    if (kind === 'pixels' && secrets.meta.trim()) {
-      await api('/admin/credentials', { meta: secrets.meta.trim() }, 'PUT');
-      setSecrets((current) => ({ ...current, meta: '' }));
-      await load();
+    if (kind === 'pixels') {
+      if (secrets.meta.trim()) {
+        await api('/admin/credentials', { meta: secrets.meta.trim() }, 'PUT');
+        setSecrets((current) => ({ ...current, meta: '' }));
+      }
+      for (const destination of s.facebookAdditionalPixels) {
+        const token = additionalSecrets[destination.id]?.trim();
+        if (!token) continue;
+        await api('/admin/credentials', { meta: token, metaPixel: destination.pixel }, 'PUT');
+        setAdditionalSecrets((current) => ({ ...current, [destination.id]: '' }));
+      }
+      const current = await api('/admin/settings');
+      setSaved(current.credentials);
     }
     if (kind === 'pixels') await refreshPixelStatus();
   };
@@ -1670,6 +1682,208 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
                     {t('إعادة إرسال الأحداث المتعثرة')}
                   </button>
                 )}
+              </details>
+              <details className="wide additional-meta-settings">
+                <summary>{t('تتبع Meta إضافي (اختياري)')}</summary>
+                <p className="muted">
+                  {t(
+                    'يمكن للحسابات الإعلانية مشاركة البكسل الأساسي. أضف مصدرًا آخر فقط إذا أردت أن يستقبل أحداث المتجر بشكل مستقل؛ هذا لا ينسخ الحملات أو تعلّمها.',
+                  )}
+                </p>
+                {s.facebookAdditionalPixels.map((destination, index) => {
+                  const status = pixelStatus?.additional?.find(
+                    (p: any) => p.pixel === destination.pixel,
+                  );
+                  const update = (change: Partial<typeof destination>) =>
+                    setS({
+                      ...s,
+                      facebookAdditionalPixels: s.facebookAdditionalPixels.map((p) =>
+                        p.id === destination.id ? { ...p, ...change } : p,
+                      ),
+                    });
+                  return (
+                    <section className="panel additional-meta-destination" key={destination.id}>
+                      <div className="toolbar">
+                        <b>{destination.label || t('تتبع Meta إضافي')}</b>
+                        <Check
+                          label={t('تفعيل التتبع')}
+                          value={destination.enabled}
+                          onChange={(enabled) => update({ enabled })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setS({
+                              ...s,
+                              facebookAdditionalPixels: s.facebookAdditionalPixels.filter(
+                                (p) => p.id !== destination.id,
+                              ),
+                            });
+                            setAdditionalSecrets((current) => ({
+                              ...current,
+                              [destination.id]: '',
+                            }));
+                          }}
+                        >
+                          {t('حذف')}
+                        </button>
+                      </div>
+                      <div className="settings-grid">
+                        <Field
+                          label={t('اسم التتبع')}
+                          value={destination.label}
+                          onChange={(label) => update({ label })}
+                        />
+                        <Field
+                          label={t('معرّف البكسل الإضافي')}
+                          path={`facebookAdditionalPixels.${index}.pixel`}
+                          value={destination.pixel}
+                          onChange={(pixel) => {
+                            update({ pixel });
+                            setAdditionalSecrets((current) => ({
+                              ...current,
+                              [destination.id]: '',
+                            }));
+                          }}
+                        />
+                        <Field
+                          secret
+                          autoComplete="new-password"
+                          label={
+                            'Meta CAPI Token ' +
+                            (saved.includes('meta:' + destination.pixel) ? t('· محفوظ') : '')
+                          }
+                          type="password"
+                          value={additionalSecrets[destination.id] || ''}
+                          onChange={(token) =>
+                            setAdditionalSecrets({ ...additionalSecrets, [destination.id]: token })
+                          }
+                        />
+                      </div>
+                      <p className="muted">
+                        {t(
+                          'استخدم رمز CAPI المصرّح له بهذا البكسل. اترك الخانة فارغة للاحتفاظ بالرمز المحفوظ.',
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={saving}
+                        onClick={() => void action(save, t('تم حفظ التغييرات.'))}
+                      >
+                        {t('حفظ التتبع الإضافي')}
+                      </button>
+                      {status && (
+                        <p role="status">
+                          {t(
+                            (
+                              {
+                                disabled: 'التتبع متوقف.',
+                                not_configured: 'احفظ معرّف البكسل ورمز CAPI أولًا.',
+                                awaiting_event: 'الرمز محفوظ. لم يُختبر قبول Meta للأحداث بعد.',
+                                connected: 'أكدت Meta قبول أحداث السيرفر.',
+                                rejected:
+                                  'رفضت Meta آخر محاولة. راجع معرّف البكسل وصلاحية رمز CAPI.',
+                              } as Record<string, string>
+                            )[status.connection],
+                          )}
+                          {status.errorCode ? ' (' + status.errorCode + ')' : ''}
+                        </p>
+                      )}
+                      {status?.events && (
+                        <p className="muted">
+                          {t('أحداث التتبع: أُرسلت')} {status.events.sent}
+                          {' · '}
+                          {t('بانتظار الإرسال')} {status.events.pending}
+                          {' · '}
+                          {t('تعذر إرسالها')} {status.events.failed}
+                        </p>
+                      )}
+                      {!!status?.events?.failed && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() =>
+                            void action(async () => {
+                              await api(
+                                '/admin/pixels/retry',
+                                { pixel: destination.pixel },
+                                'POST',
+                              );
+                              await refreshPixelStatus();
+                            }, t('تمت جدولة إعادة المحاولة.'))
+                          }
+                        >
+                          {t('إعادة إرسال الأحداث المتعثرة')}
+                        </button>
+                      )}
+                      <Field
+                        label={t('رمز اختبار Meta')}
+                        value={additionalTests[destination.id] || ''}
+                        onChange={(value) =>
+                          setAdditionalTests({ ...additionalTests, [destination.id]: value })
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={
+                          testingMeta ||
+                          !status?.enabled ||
+                          !status?.saved ||
+                          !/^TEST\d{3,20}$/.test(additionalTests[destination.id]?.trim() || '')
+                        }
+                        onClick={() => {
+                          setTestingMeta(true);
+                          void action(async () => {
+                            try {
+                              await api(
+                                '/admin/pixels/test',
+                                {
+                                  pixel: destination.pixel,
+                                  testEventCode: additionalTests[destination.id].trim(),
+                                },
+                                'POST',
+                              );
+                            } finally {
+                              try {
+                                await refreshPixelStatus();
+                              } finally {
+                                setTestingMeta(false);
+                              }
+                            }
+                          }, t('قبلت Meta حدث الاختبار. راجع Événements de test.'));
+                        }}
+                      >
+                        {t('إرسال حدث اختبار')}
+                      </button>
+                    </section>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={
+                    !/^\d{5,30}$/.test(s.facebookPixel) ||
+                    s.facebookAdditionalPixels.length >= MAX_ADDITIONAL_META_PIXELS
+                  }
+                  onClick={() =>
+                    setS({
+                      ...s,
+                      facebookAdditionalPixels: [
+                        ...s.facebookAdditionalPixels,
+                        { id: crypto.randomUUID(), pixel: '', label: '', enabled: true },
+                      ],
+                    })
+                  }
+                >
+                  {t('إضافة تتبع Meta')}
+                </button>
+                <p className="muted">
+                  {t(
+                    'الرموز مشفّرة ولا تظهر في واجهة المتجر. التعطيل يوقف الإرسال؛ الحذف يزيل الرمز المحفوظ عند حفظ الإعدادات.',
+                  )}
+                </p>
               </details>
             </>
           ) : (

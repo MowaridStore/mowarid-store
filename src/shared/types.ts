@@ -316,6 +316,7 @@ export type Settings = {
   returns: string;
   contact: string;
   facebookPixel: string;
+  facebookAdditionalPixels: { id: string; pixel: string; label: string; enabled: boolean }[];
   tiktokPixel: string;
   googleId: string;
   snapPixel: string;
@@ -422,6 +423,7 @@ export const defaults: Settings = {
   returns: 'يرجى التواصل معنا لمعرفة شروط الاسترجاع قبل إتمام الطلب.',
   contact: 'تواصل معنا عبر واتساب للاستفسار عن منتجاتك وطلباتك.',
   facebookPixel: '',
+  facebookAdditionalPixels: [],
   tiktokPixel: '',
   googleId: '',
   snapPixel: '',

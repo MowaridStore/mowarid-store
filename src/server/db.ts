@@ -80,6 +80,7 @@ export async function settings(db: D1Database): Promise<Settings> {
     policyVisibility: { ...defaults.policyVisibility, ...saved.policyVisibility },
     trackingEnabled: !!(
       saved.facebookPixel ||
+      saved.facebookAdditionalPixels?.some((p: { enabled: boolean }) => p.enabled) ||
       saved.tiktokPixel ||
       saved.googleId ||
       saved.snapPixel

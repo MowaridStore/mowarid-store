@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { storeCopyKeys } from '../shared/i18n';
 import { defaults, PRODUCT_DESCRIPTION_LIMIT } from '../shared/types';
+import { MAX_ADDITIONAL_META_PIXELS } from '../shared/meta-pixels';
 const text = (max: number) => z.string().max(max);
 const deadline = z.iso.datetime({ offset: true }).nullable().optional();
 const socialUrl = z
@@ -334,6 +335,19 @@ const baseSettingsSchema = z
     returns: text(10000),
     contact: text(10000),
     facebookPixel: z.string().regex(/^\d{0,30}$/),
+    facebookAdditionalPixels: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            pixel: z.string().regex(/^\d{5,30}$/),
+            label: text(80),
+            enabled: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(MAX_ADDITIONAL_META_PIXELS)
+      .default([]),
     tiktokPixel: z.string().regex(/^[a-zA-Z0-9]{0,60}$/),
     googleId: z.string().regex(/^$|^(G|GT|AW)-[A-Z0-9-]{3,40}$/),
     snapPixel: z.string().regex(/^[a-zA-Z0-9-]{0,60}$/),
@@ -449,6 +463,25 @@ export const settingsSchema = baseSettingsSchema
       .default({}),
   })
   .superRefine((s, context) => {
+    const pixels = [s.facebookPixel, ...s.facebookAdditionalPixels.map((p) => p.pixel)].filter(
+      Boolean,
+    );
+    if (
+      new Set(pixels).size !== pixels.length ||
+      new Set(s.facebookAdditionalPixels.map((p) => p.id)).size !==
+        s.facebookAdditionalPixels.length
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['facebookAdditionalPixels'],
+        message: 'لا تكرر معرّف البكسل نفسه.',
+      });
+    if (s.facebookAdditionalPixels.length && !/^\d{5,30}$/.test(s.facebookPixel))
+      context.addIssue({
+        code: 'custom',
+        path: ['facebookPixel'],
+        message: 'احفظ معرّف البكسل الأساسي أولًا.',
+      });
     if (s.storeLanguages && !s.storeLanguages.includes(s.storeLanguage))
       context.addIssue({
         code: 'custom',

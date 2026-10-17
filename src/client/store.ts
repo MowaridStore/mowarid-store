@@ -29,6 +29,7 @@ type Config = {
     brand: string;
     whatsapp: string;
     facebookPixel: string;
+    facebookPixels?: string[];
     tiktokPixel: string;
     googleId: string;
     snapPixel: string;
@@ -1238,25 +1239,37 @@ function script(src: string, onload?: () => void) {
 }
 let tracking = false,
   checkoutTracked = false;
-type MetaBootstrap = { enabled: boolean; pixel?: string; ticket?: string };
+type MetaBootstrap = {
+  enabled: boolean;
+  pixel?: string;
+  ticket?: string;
+  pixels?: { pixel: string; ticket: string }[];
+};
+const metaPixels = () =>
+  [...new Set([config.settings.facebookPixel, ...(config.settings.facebookPixels || [])])].filter(
+    Boolean,
+  );
 let metaBootstrap: Promise<MetaBootstrap> | undefined;
 const trackingCookie = (key: string) =>
   document.cookie
     .split('; ')
     .find((value) => value.startsWith(key + '='))
     ?.slice(key.length + 1) || '';
-async function serverTrack(event: string, eventId: string) {
+async function serverTrack(event: string, eventId: string, pixel: string) {
   if (!['PageView', 'ViewContent', 'InitiateCheckout'].includes(event)) return;
   const load = () => request<MetaBootstrap>('/api/meta/bootstrap');
   for (let attempt = 0; attempt < 2; attempt++) {
     const bootstrap = await (metaBootstrap ||= load());
-    if (!bootstrap.enabled || bootstrap.pixel !== config.settings.facebookPixel) return;
+    const destination = (
+      bootstrap.pixels || [{ pixel: bootstrap.pixel, ticket: bootstrap.ticket }]
+    ).find((p) => p.pixel === pixel);
+    if (!bootstrap.enabled || !destination) return;
     try {
       await request('/api/meta/events', {
         event,
         eventId,
-        pixel: bootstrap.pixel,
-        ticket: bootstrap.ticket,
+        pixel,
+        ticket: destination.ticket,
         path: location.pathname,
         fbp: trackingCookie('_fbp'),
         fbc:
@@ -1282,11 +1295,12 @@ function track(event: string, params: Record<string, unknown> = {}) {
       ...(p ? { content_ids: [p.sku], content_type: 'product', value: p.price / 100 } : {}),
       ...params,
     };
-  if (w.fbq) w.fbq('track', event, data, { eventID: eventId });
-  if (config.settings.facebookPixel)
-    void serverTrack(event, eventId).catch(() => {
+  for (const pixel of metaPixels()) {
+    if (w.fbq) w.fbq('trackSingle', pixel, event, data, { eventID: eventId });
+    void serverTrack(event, eventId, pixel).catch(() => {
       metaBootstrap = undefined;
     });
+  }
   if (w.ttq)
     event === 'PageView'
       ? w.ttq.page()
@@ -1323,7 +1337,7 @@ function startTracking() {
   tracking = true;
   const w = window as any,
     s = config.settings;
-  if (s.facebookPixel) {
+  if (metaPixels().length) {
     if (!trackingCookie('_fbp'))
       document.cookie =
         '_fbp=fb.1.' +
@@ -1344,7 +1358,7 @@ function startTracking() {
       w.fbq = f;
       script('https://connect.facebook.net/en_US/fbevents.js');
     }
-    w.fbq('init', s.facebookPixel);
+    for (const pixel of metaPixels()) w.fbq('init', pixel);
   }
   if (s.tiktokPixel) {
     const ttq: any = [];

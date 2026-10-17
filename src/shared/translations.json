@@ -5666,5 +5666,65 @@
   "نسخ الزر": {
     "en": "Duplicate button",
     "fr": "Dupliquer le bouton"
+  },
+  "تتبع Meta إضافي (اختياري)": {
+    "en": "Additional Meta tracking (optional)",
+    "fr": "Suivi Meta supplémentaire (facultatif)"
+  },
+  "يمكن للحسابات الإعلانية مشاركة البكسل الأساسي. أضف مصدرًا آخر فقط إذا أردت أن يستقبل أحداث المتجر بشكل مستقل؛ هذا لا ينسخ الحملات أو تعلّمها.": {
+    "en": "Ad accounts can share the primary pixel. Add another source only to receive store events independently; this does not copy campaigns or their learning.",
+    "fr": "Les comptes publicitaires peuvent partager le pixel principal. Ajoutez une autre source pour recevoir les événements indépendamment ; cela ne copie ni les campagnes ni leur apprentissage."
+  },
+  "تتبع Meta إضافي": {
+    "en": "Additional Meta tracking",
+    "fr": "Suivi Meta supplémentaire"
+  },
+  "تفعيل التتبع": {
+    "en": "Enable tracking",
+    "fr": "Activer le suivi"
+  },
+  "اسم التتبع": {
+    "en": "Tracking name",
+    "fr": "Nom du suivi"
+  },
+  "معرّف البكسل الإضافي": {
+    "en": "Additional pixel ID",
+    "fr": "ID du pixel supplémentaire"
+  },
+  "استخدم رمز CAPI المصرّح له بهذا البكسل. اترك الخانة فارغة للاحتفاظ بالرمز المحفوظ.": {
+    "en": "Use a CAPI token authorized for this pixel. Leave blank to keep the saved token.",
+    "fr": "Utilisez un jeton CAPI autorisé pour ce pixel. Laissez vide pour conserver le jeton enregistré."
+  },
+  "حفظ التتبع الإضافي": {
+    "en": "Save additional tracking",
+    "fr": "Enregistrer le suivi supplémentaire"
+  },
+  "التتبع متوقف.": {
+    "en": "Tracking is disabled.",
+    "fr": "Le suivi est désactivé."
+  },
+  "أحداث التتبع: أُرسلت": {
+    "en": "Tracking events: sent",
+    "fr": "Événements de suivi : envoyés"
+  },
+  "إضافة تتبع Meta": {
+    "en": "Add Meta tracking",
+    "fr": "Ajouter un suivi Meta"
+  },
+  "الرموز مشفّرة ولا تظهر في واجهة المتجر. التعطيل يوقف الإرسال؛ الحذف يزيل الرمز المحفوظ عند حفظ الإعدادات.": {
+    "en": "Tokens are encrypted and never exposed on the storefront. Disabling stops sending; removal deletes the saved token when settings are saved.",
+    "fr": "Les jetons sont chiffrés et ne sont jamais exposés sur la boutique. La désactivation arrête l’envoi ; la suppression efface le jeton lors de l’enregistrement."
+  },
+  "لا تكرر معرّف البكسل نفسه.": {
+    "en": "Do not repeat the same pixel ID.",
+    "fr": "Ne répétez pas le même ID de pixel."
+  },
+  "احفظ معرّف البكسل الأساسي أولًا.": {
+    "en": "Save the primary pixel ID first.",
+    "fr": "Enregistrez d’abord l’ID du pixel principal."
+  },
+  "احفظ معرّف البكسل أولًا.": {
+    "en": "Save the pixel ID first.",
+    "fr": "Enregistrez d’abord l’ID du pixel."
   }
 }

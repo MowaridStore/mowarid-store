@@ -1,7 +1,12 @@
 import { maximumShipping } from './shipping-policy';
 import { recordRemote } from './tracking';
 import { META_GRAPH_VERSION } from './meta';
-import { flushMetaEvents } from './meta-events';
+import {
+  flushMetaEvents,
+  metaConfiguredPixels,
+  metaEventStatement,
+  type MetaEvent,
+} from './meta-events';
 export { recordRemote } from './tracking';
 import { deliveredShipping, remoteShipping } from '../shared/order-status';
 import { currentOrderCustomer } from '../shared/order-customer';
@@ -177,7 +182,8 @@ export async function metaPurchase(env: Env, o: OrderRow) {
     throw new RemoteError('purchase_requires_delivery', false);
   const s = await settings(env.DB),
     token = await credential(env, 'meta');
-  if (!s.trackingEnabled || !s.facebookPixel || !token)
+  const additional = (await metaConfiguredPixels(env)).filter((pixel) => pixel !== s.facebookPixel);
+  if (!s.trackingEnabled || ((!s.facebookPixel || !token) && !additional.length))
     throw new RemoteError('meta_not_configured', false);
   const customer = currentOrderCustomer(
       JSON.parse(o.customer) as Customer,
@@ -186,7 +192,7 @@ export async function metaPurchase(env: Env, o: OrderRow) {
     q = JSON.parse(o.quote) as Quote,
     m = JSON.parse(o.matching);
   const ph = await digest('212' + customer.phone.slice(1));
-  const data = {
+  const data: MetaEvent = {
     event_name: 'Purchase',
     event_time: Math.floor(Date.parse(o.delivered_at) / 1000),
     event_id: 'purchase:' + o.id,
@@ -210,6 +216,16 @@ export async function metaPurchase(env: Env, o: OrderRow) {
       })),
     },
   };
+  // Secondary destinations have their own durable receipts and retries. A
+  // rejected primary must not prevent them from receiving a delivered sale.
+  if (additional.length) {
+    await env.DB.batch(
+      await Promise.all(additional.map((pixel) => metaEventStatement(env, pixel, data))),
+    );
+    await flushMetaEvents(env, additional.length);
+  }
+  if (!s.trackingEnabled || !s.facebookPixel || !token)
+    throw new RemoteError('meta_not_configured', false);
   let r: Response;
   try {
     r = await fetch(
