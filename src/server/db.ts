@@ -83,6 +83,7 @@ export async function settings(db: D1Database): Promise<Settings> {
       saved.facebookAdditionalPixels?.some((p: { enabled: boolean }) => p.enabled) ||
       saved.tiktokPixel ||
       saved.googleId ||
+      saved.googleAdsId ||
       saved.snapPixel
     ),
   };

@@ -50,6 +50,8 @@ const labels: Record<string, string> = {
   whatsapp: 'رقم واتساب',
   facebookPixel: 'معرّف بكسل Meta',
   tiktokPixel: 'معرّف بكسل TikTok',
+  googleAdsId: 'معرّف تحويل Google Ads',
+  googleAdsLeadLabel: 'تصنيف تحويل Google Ads',
   googleId: 'معرّف Google',
   snapPixel: 'معرّف Snapchat',
 };

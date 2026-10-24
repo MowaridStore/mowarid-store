@@ -32,6 +32,8 @@ type Config = {
     facebookPixels?: string[];
     tiktokPixel: string;
     googleId: string;
+    googleAdsId: string;
+    googleAdsLeadLabel: string;
     snapPixel: string;
     trackingEnabled: boolean;
     turnstileSiteKey: string;
@@ -62,7 +64,7 @@ try {
   const saved = sessionStorage.getItem(landingChoiceKey);
   const p = config.products.find((p) => p.id === saved);
   if (
-    config.landing &&
+    config.productId &&
     saved &&
     allowedLandingIds.has(saved) &&
     p?.active &&
@@ -72,7 +74,7 @@ try {
     selectedPurchaseId = saved;
 } catch {}
 function purchaseProductId() {
-  return config.landing ? selectedPurchaseId : config.productId;
+  return selectedPurchaseId;
 }
 let selectedOfferId = config.direct ? new URLSearchParams(location.search).get('offer') || '' : '';
 function currentOfferId() {
@@ -135,7 +137,7 @@ function restoreLanguageDraft() {
     )
       return;
     if (
-      config.landing &&
+      config.productId &&
       allowedLandingIds.has(saved.selectedProductId) &&
       config.products.some(
         (p) => p.id === saved.selectedProductId && p.active && p.verified && p.stock > 0,
@@ -199,22 +201,27 @@ const escape = (v: unknown) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
+let memoryCart: LocalCartLine[] = [];
+let cartStorageAvailable = true;
 function read(): LocalCartLine[] {
+  if (!cartStorageAvailable) return memoryCart;
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || '[]');
-    return Array.isArray(v) && v.length <= 30
-      ? v.filter(
-          (x) =>
-            x &&
-            typeof x.productId === 'string' &&
-            typeof x.supplier === 'string' &&
-            typeof x.sku === 'string' &&
-            Number.isInteger(x.quantity) &&
-            x.quantity > 0,
-        )
-      : [];
+    return (memoryCart =
+      Array.isArray(v) && v.length <= 30
+        ? v.filter(
+            (x) =>
+              x &&
+              typeof x.productId === 'string' &&
+              typeof x.supplier === 'string' &&
+              typeof x.sku === 'string' &&
+              Number.isInteger(x.quantity) &&
+              x.quantity > 0,
+          )
+        : []);
   } catch {
-    return [];
+    cartStorageAvailable = false;
+    return memoryCart;
   }
 }
 let cart = read(),
@@ -223,6 +230,14 @@ let cart = read(),
   quoteSerial = 0,
   captcha = '',
   widget: string | undefined;
+let quotedIntent = '',
+  quotedAt = 0;
+const quoteIntent = () =>
+  JSON.stringify({
+    cart: payload(),
+    city: $<HTMLInputElement>('[name=city]')?.value || '',
+    checkoutMode: directCheckout ? 'direct' : 'cart',
+  });
 let shippingRates = { casa: config.settings.shippingCasa, other: config.settings.shippingOther };
 let replacement: LocalCartLine | null = null;
 const attemptKey =
@@ -239,8 +254,13 @@ function write(next: LocalCartLine[]) {
   const changedSupplier = cart[0]?.supplier !== next[0]?.supplier;
   const changed = checkoutIntent(cart, {}) !== checkoutIntent(next, {});
   cart = next;
-  localStorage.setItem(KEY, JSON.stringify(cart));
-  if (changed) localStorage.removeItem('dar-order-attempt');
+  memoryCart = next;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(cart));
+    if (changed) localStorage.removeItem('dar-order-attempt');
+  } catch {
+    cartStorageAvailable = false;
+  }
   render();
   void updateQuote();
   if (changedSupplier && searchTerm.trim() && $('.shop-home')) void runSearch();
@@ -349,6 +369,11 @@ function add(id: string, offerId = '', increment = false, quantity = 1) {
       return false;
     }
     write(addToCart(cart, l));
+    track('AddToCart', {
+      content_ids: [p.sku],
+      content_type: 'product',
+      value: (l.subtotal ?? l.unitPrice * l.quantity) / 100,
+    });
     toast(t('تمت الإضافة إلى السلة'));
     return true;
   } catch (e) {
@@ -391,6 +416,7 @@ function render() {
   document.querySelectorAll<HTMLElement>('[data-sale-original]').forEach((el) => {
     const p = config.products.find((p) => p.id === el.dataset.saleOriginal);
     el.hidden =
+      (el.dataset.saleOriginal === config.productId && config.productId !== purchaseProductId()) ||
       !p?.originalPrice ||
       p.originalPrice <= p.price ||
       (p.id === purchaseProductId() && selectedSaleBundle);
@@ -402,6 +428,7 @@ function render() {
   document.querySelectorAll<HTMLElement>('[data-sale-badge]').forEach((el) => {
     const p = config.products.find((p) => p.id === el.dataset.saleBadge);
     el.hidden =
+      (el.dataset.saleBadge === config.productId && config.productId !== purchaseProductId()) ||
       !p?.originalPrice ||
       p.originalPrice <= p.price ||
       (p.id === purchaseProductId() && selectedSaleBundle);
@@ -411,6 +438,7 @@ function render() {
   document.querySelectorAll<HTMLElement>('[data-sale-deadline]').forEach((el) => {
     const p = config.products.find((p) => p.id === el.dataset.saleDeadline);
     el.hidden =
+      (el.dataset.saleDeadline === config.productId && config.productId !== purchaseProductId()) ||
       !p?.priceEndsAt ||
       Date.parse(p.priceEndsAt) <= Date.now() ||
       (p.id === purchaseProductId() && selectedSaleBundle);
@@ -582,6 +610,19 @@ function renderCheckout(html: string) {
       });
   }
   if (p) {
+    const quantityInput = $<HTMLInputElement>('#product-quantity');
+    if (quantityInput) quantityInput.max = String(Math.min(100, p.stock));
+    document
+      .querySelectorAll<HTMLElement>('[data-purchase-name]')
+      .forEach((el) => (el.textContent = p.name));
+    for (const button of document.querySelectorAll<HTMLButtonElement>(
+      '#buy-now, [data-buy-now], #add-offer',
+    )) {
+      button.dataset.productId = p.id;
+      button.disabled = !p.active || !p.verified || !p.supplier || p.stock < 1;
+    }
+    const offerSection = $('[data-product-offers]');
+    if (offerSection) offerSection.hidden = !p.offers.length && !p.bundleMode;
     const choices = $('[data-offer-choices]');
     const signature = JSON.stringify([
       p.id,
@@ -713,6 +754,7 @@ async function updateQuote(refreshRevision = true) {
     free ? 0 : isCasablancaAlias(city) ? shippingRates.casa : shippingRates.other,
   );
   try {
+    const intent = quoteIntent();
     const data = await request<Quote>('/api/checkout/quote', {
       cart: payload(),
       city,
@@ -720,6 +762,8 @@ async function updateQuote(refreshRevision = true) {
     });
     if (sequence !== quoteSerial) return;
     quote = data;
+    quotedIntent = intent;
+    quotedAt = Date.now();
     if (data.shippingRates) shippingRates = data.shippingRates;
     if (!directCheckout) renderPromotion(data.subtotal, data.shippingReason !== 'standard');
     paintQuote(data.subtotal, data.shipping);
@@ -1006,7 +1050,7 @@ document.addEventListener('change', (event) => {
   if (
     !(input instanceof HTMLInputElement) ||
     input.name !== 'landing-product' ||
-    !config.landing ||
+    !config.productId ||
     !allowedLandingIds.has(input.value)
   )
     return;
@@ -1055,6 +1099,7 @@ window.addEventListener('storage', (e) => {
   }
 });
 let debounce: ReturnType<typeof setTimeout>;
+let memoryAttempt: { payload: string; id: string } | null = null;
 $<HTMLInputElement>('[name=city]')?.addEventListener('input', () => {
   clearTimeout(debounce);
   quote = null;
@@ -1064,8 +1109,12 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.currentTarget as HTMLFormElement,
     button = form.querySelector<HTMLButtonElement>('[type=submit]')!;
+  if (button.disabled) return;
+  const buttonContent = button.innerHTML;
   clearTimeout(debounce);
   button.disabled = true;
+  button.textContent = t('جارٍ تسجيل طلبك…');
+  form.setAttribute('aria-busy', 'true');
   try {
     const latest = read();
     if (!directCheckout && JSON.stringify(latest) !== JSON.stringify(cart)) {
@@ -1079,9 +1128,9 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
         ['name', 'phone', 'city', 'address', 'notes'].map((k) => [k, String(f.get(k) || '')]),
       );
     const intendedCart = payload();
-    let attempt: { payload: string; id: string } | null = null;
+    let attempt: { payload: string; id: string } | null = memoryAttempt;
     try {
-      attempt = JSON.parse(localStorage.getItem(attemptKey) || 'null');
+      attempt = JSON.parse(localStorage.getItem(attemptKey) || 'null') || memoryAttempt;
     } catch {}
     let sameIntent = false;
     if (attempt) {
@@ -1093,20 +1142,43 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
       } catch {}
     }
     const done = (ref: string) => {
-      track('Lead', { event_id: 'lead:' + ref });
+      const acceptedQuote = quote;
       if (!directCheckout && checkoutIntent(read(), {}) === checkoutIntent(intendedCart, {}))
         write([]);
       else {
         cart = read();
         render();
       }
-      localStorage.removeItem(attemptKey);
+      memoryAttempt = null;
+      try {
+        localStorage.removeItem(attemptKey);
+      } catch {}
       if (directCheckout) {
-        sessionStorage.removeItem(directQuantityKey());
+        try {
+          sessionStorage.removeItem(directQuantityKey());
+        } catch {}
       }
       form.reset();
       $('#order-ref')!.textContent = ref;
       $<HTMLDialogElement>('#thanks-dialog')!.showModal();
+      // A blocked advertising SDK must never hide a successfully saved order.
+      if (!trackedLeads.has(ref)) {
+        trackedLeads.add(ref);
+        let sent = false;
+        try {
+          sent = sessionStorage.getItem('dar-lead:' + ref) === 'sent';
+        } catch {}
+        if (!sent) {
+          track('Lead', {
+            event_id: 'lead:' + ref,
+            transaction_id: ref,
+            ...(acceptedQuote ? { value: acceptedQuote.total / 100 } : {}),
+          });
+          try {
+            sessionStorage.setItem('dar-lead:' + ref, 'sent');
+          } catch {}
+        }
+      }
     };
     if (attempt && sameIntent) {
       const previous = await request<{ ref: string | null }>('/api/orders/attempt/' + attempt.id);
@@ -1115,7 +1187,10 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
         return;
       }
     }
-    await updateQuote();
+    // The server revalidates the quote before saving. Avoid repeating an
+    // unchanged, recently displayed quote merely because Submit was clicked.
+    if (!quote || quotedIntent !== quoteIntent() || Date.now() - quotedAt > 60000)
+      await updateQuote();
     if (!quote) {
       if (!$('#checkout-error')!.textContent)
         $('#checkout-error')!.textContent = t('راجع محتويات الطلب وأكمل بياناتك.');
@@ -1132,7 +1207,10 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
     const stable = { cart: payload(), customer, fingerprint: quote.fingerprint };
     const serialized = JSON.stringify(stable);
     attempt = { payload: serialized, id: attempt && sameIntent ? attempt.id : crypto.randomUUID() };
-    localStorage.setItem(attemptKey, JSON.stringify(attempt));
+    memoryAttempt = attempt;
+    try {
+      localStorage.setItem(attemptKey, JSON.stringify(attempt));
+    } catch {}
     const result = await request<{ ref: string }>('/api/orders', {
       ...stable,
       checkoutMode: directCheckout ? 'direct' : 'cart',
@@ -1157,9 +1235,21 @@ $<HTMLFormElement>('#checkout-form')?.addEventListener('submit', async (e) => {
     });
     done(result.ref);
   } catch (e) {
+    if (
+      [
+        'quote_changed',
+        'cart_changed',
+        'offer_changed',
+        'unavailable_product',
+        'bundle_quantity_unavailable',
+      ].includes((e as { code?: string }).code || '')
+    )
+      await updateQuote();
     $('#checkout-error')!.textContent = (e as Error).message;
   } finally {
     button.disabled = false;
+    button.innerHTML = buttonContent;
+    form.removeAttribute('aria-busy');
     captcha = '';
     if (widget && (window as any).turnstile) (window as any).turnstile.reset(widget);
   }
@@ -1239,6 +1329,7 @@ function script(src: string, onload?: () => void) {
 }
 let tracking = false,
   checkoutTracked = false;
+const trackedLeads = new Set<string>();
 type MetaBootstrap = {
   enabled: boolean;
   pixel?: string;
@@ -1296,41 +1387,57 @@ function track(event: string, params: Record<string, unknown> = {}) {
       ...params,
     };
   for (const pixel of metaPixels()) {
-    if (w.fbq) w.fbq('trackSingle', pixel, event, data, { eventID: eventId });
+    try {
+      if (w.fbq) w.fbq('trackSingle', pixel, event, data, { eventID: eventId });
+    } catch {}
     void serverTrack(event, eventId, pixel).catch(() => {
       metaBootstrap = undefined;
     });
   }
-  if (w.ttq)
-    event === 'PageView'
-      ? w.ttq.page()
-      : w.ttq.track(event === 'Lead' ? 'SubmitForm' : event, data);
-  if (w.gtag)
-    w.gtag(
-      'event',
-      (
+  try {
+    if (w.ttq)
+      event === 'PageView' ? w.ttq.page() : w.ttq.track(event, data, { event_id: eventId });
+  } catch {}
+  try {
+    if (w.gtag) {
+      const googleEvent = (
         {
           PageView: 'page_view',
           ViewContent: 'view_item',
+          AddToCart: 'add_to_cart',
           InitiateCheckout: 'begin_checkout',
           Lead: 'generate_lead',
         } as Record<string, string>
-      )[event],
-      data,
-    );
-  if (w.snaptr)
-    w.snaptr(
-      'track',
-      (
-        {
-          PageView: 'PAGE_VIEW',
-          ViewContent: 'VIEW_CONTENT',
-          InitiateCheckout: 'START_CHECKOUT',
-          Lead: 'SIGN_UP',
-        } as Record<string, string>
-      )[event],
-      data,
-    );
+      )[event];
+      if (config.settings.googleId && googleEvent)
+        w.gtag('event', googleEvent, { ...data, send_to: config.settings.googleId });
+      const adsId =
+        config.settings.googleAdsId ||
+        (config.settings.googleId?.startsWith('AW-') ? config.settings.googleId : '');
+      if (event === 'Lead' && adsId && config.settings.googleAdsLeadLabel)
+        w.gtag('event', 'conversion', {
+          send_to: adsId + '/' + config.settings.googleAdsLeadLabel,
+          currency: 'MAD',
+          value: typeof data.value === 'number' ? data.value : 0,
+          transaction_id: params.transaction_id,
+        });
+    }
+  } catch {}
+  try {
+    if (w.snaptr)
+      w.snaptr(
+        'track',
+        (
+          {
+            PageView: 'PAGE_VIEW',
+            ViewContent: 'VIEW_CONTENT',
+            InitiateCheckout: 'START_CHECKOUT',
+            Lead: 'SIGN_UP',
+          } as Record<string, string>
+        )[event],
+        data,
+      );
+  } catch {}
 }
 function startTracking() {
   if (tracking || !config.settings.trackingEnabled) return;
@@ -1358,7 +1465,11 @@ function startTracking() {
       w.fbq = f;
       script('https://connect.facebook.net/en_US/fbevents.js');
     }
-    for (const pixel of metaPixels()) w.fbq('init', pixel);
+    for (const pixel of metaPixels()) {
+      try {
+        w.fbq('init', pixel);
+      } catch {}
+    }
   }
   if (s.tiktokPixel) {
     const ttq: any = [];
@@ -1406,14 +1517,15 @@ function startTracking() {
     };
     script('https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=' + s.tiktokPixel + '&lib=ttq');
   }
-  if (s.googleId) {
+  const googleTags = [...new Set([s.googleId, s.googleAdsId].filter(Boolean))];
+  if (googleTags.length) {
     w.dataLayer = w.dataLayer || [];
     w.gtag = function () {
       w.dataLayer.push(arguments);
     };
     w.gtag('js', new Date());
-    w.gtag('config', s.googleId, { send_page_view: false });
-    script('https://www.googletagmanager.com/gtag/js?id=' + s.googleId);
+    for (const id of googleTags) w.gtag('config', id, { send_page_view: false });
+    script('https://www.googletagmanager.com/gtag/js?id=' + googleTags[0]);
   }
   if (s.snapPixel) {
     const f: any = function (...args: unknown[]) {

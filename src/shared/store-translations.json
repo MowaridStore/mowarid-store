@@ -1730,5 +1730,9 @@
   "سيتواصل معك رجل التوصيل": {
     "en": "The delivery driver will contact you.",
     "fr": "Le livreur vous contactera."
+  },
+  "جارٍ تسجيل طلبك…": {
+    "en": "Saving your order…",
+    "fr": "Enregistrement de votre commande…"
   }
 }

@@ -1,13 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { landingProducts, landingPackSavings } from '../src/shared/landing-products';
-import { productSchema } from '../src/server/schemas';
+import { productSchema, settingsSchema } from '../src/server/schemas';
 import { type Product, defaults } from '../src/shared/types';
-import { OrderForm } from '../src/server/views';
+import { OrderForm, ProductPage } from '../src/server/views';
 const product = (id: string, changes: Partial<Product> = {}) =>
   ({
     id,
     sku: id,
     name: id,
+    slug: id,
+    description: '',
+    image: '',
     price: 10000,
     offers: [],
     blocks: [],
@@ -37,6 +40,38 @@ const rows = [
   product('unselected'),
 ];
 describe('landing purchase alternatives', () => {
+  it('shows the same explicitly configured choices on regular product pages', async () => {
+    const html = await ProductPage({
+      p: { ...a, pageMode: 'product' },
+      s: defaults,
+      recommendations: rows,
+    }).toString();
+    expect(html.match(/name="landing-product"/g)).toHaveLength(3);
+    expect(html).toContain('value="one"');
+    expect(html).not.toContain('value="draft"');
+    expect(html).toContain('data-pack-savings');
+    const plain = await ProductPage({
+      p: product('plain'),
+      s: defaults,
+      recommendations: rows,
+    }).toString();
+    expect(plain).not.toContain('name="landing-product"');
+  });
+  it('accepts separate Google Ads and GA4 settings and rejects executable or malformed identifiers', () => {
+    expect(
+      settingsSchema.parse({
+        ...defaults,
+        googleId: 'G-ABCDE123',
+        googleAdsId: 'AW-123456789',
+        googleAdsLeadLabel: 'AbC_def-123',
+      }),
+    ).toMatchObject({ googleAdsId: 'AW-123456789', googleAdsLeadLabel: 'AbC_def-123' });
+    for (const googleAdsId of ['G-123456', '123456789', 'AW-<script>'])
+      expect(settingsSchema.safeParse({ ...defaults, googleAdsId }).success).toBe(false);
+    expect(
+      settingsSchema.safeParse({ ...defaults, googleAdsLeadLabel: 'a/b<script>' }).success,
+    ).toBe(false);
+  });
   it('includes only explicitly selected available published SKUs, including products hidden from storefront', () => {
     expect(landingProducts(a, rows).map((p) => p.id)).toEqual(['pack', 'one', 'two']);
     expect(landingProducts(a, [product('one', { storefrontVisible: 0 })]).map((p) => p.id)).toEqual(

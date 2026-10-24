@@ -1575,8 +1575,26 @@ function SettingsPage({ kind, action }: { kind: string; action: Action }) {
               >
                 {t('استخراج معرّف البكسل وحفظه')}
               </button>
-              {field('tiktokPixel', 'TikTok Pixel ID')}
+              <fieldset className="wide">
+                <legend>TikTok Ads</legend>
+                {field('tiktokPixel', 'TikTok Pixel ID')}
+                <p className="muted">
+                  {t(
+                    'أدخل معرّف البكسل من TikTok Events Manager. نسجّل الزيارات ومشاهدة المنتجات وبدء إتمام الطلب وLead بعد حفظ الطلب بنجاح.',
+                  )}
+                </p>
+              </fieldset>
               {field('googleId', 'Google Tag / GA4 ID')}
+              <fieldset className="wide">
+                <legend>Google Ads</legend>
+                {field('googleAdsId', t('معرّف تحويل Google Ads (AW-)'))}
+                {field('googleAdsLeadLabel', t('تصنيف تحويل الطلب (Conversion Label)'))}
+                <p className="muted">
+                  {t(
+                    'انسخ المعرّف والتصنيف من إعداد تحويل الموقع في Google Ads. يُرسل التحويل بعد حفظ الطلب فقط، ويعني طلبًا مسجّلًا وليس بيعًا موصلًا. يمكنك إبقاء GA4 مفعّلًا معه.',
+                  )}
+                </p>
+              </fieldset>
               {field('snapPixel', 'Snapchat Pixel ID')}
               <details className="wide">
                 <summary>{t('إعداد تتبع Meta عبر السيرفر')}</summary>
@@ -3676,6 +3694,94 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
             </div>
           </details>
         </section>
+        <section className="panel">
+          <details className="landing-products-editor" open>
+            <summary>{t('المنتجات المتاحة للاختيار في الصفحة العادية والهبوط')}</summary>
+            <p className="muted">
+              {t(
+                'المنتج الحالي متاح تلقائيًا. اختر حتى 6 منتجات إضافية؛ يطلب الزائر منتجًا واحدًا بسعره وباقاته. تظهر المنتجات المنشورة والمتوفرة فقط، حتى إن كانت مخفية من واجهة المتجر.',
+              )}
+            </p>
+            <label>
+              {t('البحث باسم أو كود المنتج')}
+              <input
+                type="search"
+                value={landingChoiceSearch}
+                onChange={(e) => setLandingChoiceSearch(e.target.value)}
+              />
+            </label>
+            <div className="landing-products-picker">
+              {rows
+                .filter(
+                  (p) =>
+                    p.id !== draft.id &&
+                    normalizeSearch(p.name + ' ' + p.sku).includes(
+                      normalizeSearch(landingChoiceSearch),
+                    ),
+                )
+                .map((p) => {
+                  const ids = draft.presentation?.landingProductIds || [];
+                  const selected = ids.includes(p.id);
+                  const componentIds = draft.presentation?.landingPackComponentIds || [];
+                  return (
+                    <div className="landing-product-pick" key={p.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={!selected && ids.length >= 6}
+                          onChange={(e) =>
+                            patch('presentation', {
+                              ...draft.presentation,
+                              landingProductIds: e.target.checked
+                                ? [...ids, p.id]
+                                : ids.filter((id) => id !== p.id),
+                              landingPackComponentIds: e.target.checked
+                                ? componentIds
+                                : componentIds.filter((id) => id !== p.id),
+                            })
+                          }
+                        />
+                        {p.image && (
+                          <img src={p.image} alt="" width="48" height="48" loading="lazy" />
+                        )}
+                        <span>
+                          {p.name}
+                          <small>
+                            {p.sku} · {money(p.price)} ·{' '}
+                            {t(
+                              p.active && p.verified && p.stock > 0
+                                ? 'متاح للطلب'
+                                : 'غير متوفر حاليًا',
+                            )}
+                          </small>
+                        </span>
+                      </label>
+                      {selected && (
+                        <Check
+                          label={t('مكوّن من الباك الحالي (قطعة واحدة)')}
+                          value={componentIds.includes(p.id)}
+                          onChange={(checked) =>
+                            patch('presentation', {
+                              ...draft.presentation,
+                              landingPackComponentIds: checked
+                                ? [...componentIds, p.id]
+                                : componentIds.filter((id) => id !== p.id),
+                            })
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+            <p className="muted">
+              {t(
+                'لحساب توفير الباك، حدّد مكوّناته الفردية فقط (منتجان على الأقل، قطعة من كل منتج). يظهر التوفير عندما يكون الباك أرخص من مجموع أسعارها الحالية. عدّل سعر كل منتج من صفحته.',
+              )}
+            </p>
+          </details>
+        </section>
         <section className="panel product-form-editor-panel">
           <details
             ref={landingEditor}
@@ -3742,92 +3848,6 @@ function Products({ action, clearValidation }: { action: Action; clearValidation
                 )}
               </p>
             </div>
-            <details className="landing-products-editor" open>
-              <summary>{t('المنتجات المتاحة في استمارة الهبوط')}</summary>
-              <p className="muted">
-                {t(
-                  'المنتج الحالي متاح تلقائيًا. اختر حتى 6 منتجات إضافية؛ يطلب الزائر منتجًا واحدًا بسعره وباقاته. تظهر المنتجات المنشورة والمتوفرة فقط، حتى إن كانت مخفية من واجهة المتجر.',
-                )}
-              </p>
-              <label>
-                {t('البحث باسم أو كود المنتج')}
-                <input
-                  type="search"
-                  value={landingChoiceSearch}
-                  onChange={(e) => setLandingChoiceSearch(e.target.value)}
-                />
-              </label>
-              <div className="landing-products-picker">
-                {rows
-                  .filter(
-                    (p) =>
-                      p.id !== draft.id &&
-                      normalizeSearch(p.name + ' ' + p.sku).includes(
-                        normalizeSearch(landingChoiceSearch),
-                      ),
-                  )
-                  .map((p) => {
-                    const ids = draft.presentation?.landingProductIds || [];
-                    const selected = ids.includes(p.id);
-                    const componentIds = draft.presentation?.landingPackComponentIds || [];
-                    return (
-                      <div className="landing-product-pick" key={p.id}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            disabled={!selected && ids.length >= 6}
-                            onChange={(e) =>
-                              patch('presentation', {
-                                ...draft.presentation,
-                                landingProductIds: e.target.checked
-                                  ? [...ids, p.id]
-                                  : ids.filter((id) => id !== p.id),
-                                landingPackComponentIds: e.target.checked
-                                  ? componentIds
-                                  : componentIds.filter((id) => id !== p.id),
-                              })
-                            }
-                          />
-                          {p.image && (
-                            <img src={p.image} alt="" width="48" height="48" loading="lazy" />
-                          )}
-                          <span>
-                            {p.name}
-                            <small>
-                              {p.sku} · {money(p.price)} ·{' '}
-                              {t(
-                                p.active && p.verified && p.stock > 0
-                                  ? 'متاح للطلب'
-                                  : 'غير متوفر حاليًا',
-                              )}
-                            </small>
-                          </span>
-                        </label>
-                        {selected && (
-                          <Check
-                            label={t('مكوّن من الباك الحالي (قطعة واحدة)')}
-                            value={componentIds.includes(p.id)}
-                            onChange={(checked) =>
-                              patch('presentation', {
-                                ...draft.presentation,
-                                landingPackComponentIds: checked
-                                  ? [...componentIds, p.id]
-                                  : componentIds.filter((id) => id !== p.id),
-                              })
-                            }
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-              <p className="muted">
-                {t(
-                  'لحساب توفير الباك، حدّد مكوّناته الفردية فقط (منتجان على الأقل، قطعة من كل منتج). يظهر التوفير عندما يكون الباك أرخص من مجموع أسعارها الحالية. عدّل سعر كل منتج من صفحته.',
-                )}
-              </p>
-            </details>
             <div className="product-presentation-links landing-footer-settings">
               <strong>{t('التواصل أسفل صفحة الهبوط')}</strong>
               <Check

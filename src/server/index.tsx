@@ -64,7 +64,7 @@ app.use('*', async (c, next) => {
   // HTTPS endpoint; merchant domains and external gateway hosts are not pinned here.
   c.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://connect.facebook.net https://analytics.tiktok.com https://www.googletagmanager.com https://sc-static.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://*.facebook.com https://*.tiktok.com https://*.google-analytics.com https://*.analytics.google.com https://*.snapchat.com; frame-src 'self' https://challenges.cloudflare.com https://www.facebook.com/tr/; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com/tr/",
+    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://connect.facebook.net https://analytics.tiktok.com https://analytics.tiktokw.us https://anlytics-ipv6.tiktokw.us https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com https://sc-static.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://*.facebook.com https://*.tiktok.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.tiktokw.us https://anlytics-ipv6.tiktokw.us https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://ad.doubleclick.net https://pagead2.googlesyndication.com https://www.google.com https://www.google.co.ma https://www.google.fr https://*.snapchat.com; frame-src 'self' https://www.googletagmanager.com https://challenges.cloudflare.com https://www.facebook.com/tr/; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com/tr/",
   );
   await next();
 });
@@ -190,18 +190,22 @@ app.get('/products/:slug', async (c) => {
       ? await landingCandidates(c.env, p, s)
       : await products(c.env.DB, true);
 
+  if (p.pageMode !== 'landing')
+    for (const choice of await landingCandidates(c.env, p, s))
+      if (!all.some((item) => item.id === choice.id)) all.push(choice);
   if (!all.some((item) => item.id === p.id)) all.push(p);
+  const safe = await safeProducts(c.env, all, s);
   c.header('Cache-Control', 'no-store');
   return c.html(
     <Layout
       pageUrl={c.req.url}
       s={s}
-      products={await safeProducts(c.env, all, s)}
+      products={safe}
       product={p}
       title={p.name}
       development={c.env.ENVIRONMENT === 'development'}
     >
-      <ProductPage p={p} s={s} recommendations={all} />
+      <ProductPage p={p} s={s} recommendations={safe} />
     </Layout>,
   );
 });
@@ -223,18 +227,22 @@ for (const [path, mode] of [
     const all =
       mode === 'landing' ? await landingCandidates(c.env, p, s) : await products(c.env.DB, true);
 
+    if (mode !== 'landing')
+      for (const choice of await landingCandidates(c.env, p, s))
+        if (!all.some((item) => item.id === choice.id)) all.push(choice);
     if (!all.some((item) => item.id === p.id)) all.push(p);
+    const safe = await safeProducts(c.env, all, s);
     c.header('Cache-Control', 'no-store');
     return c.html(
       <Layout
         pageUrl={c.req.url}
         s={s}
-        products={await safeProducts(c.env, all, s)}
+        products={safe}
         product={p}
         title={p.name}
         development={c.env.ENVIRONMENT === 'development'}
       >
-        <ProductPage p={p} s={s} recommendations={all} />
+        <ProductPage p={p} s={s} recommendations={safe} />
       </Layout>,
     );
   });

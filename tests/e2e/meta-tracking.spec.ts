@@ -242,3 +242,186 @@ test('additional pixel controls save encrypted credentials, preserve blank token
     await page.request.put('/api/admin/settings', { headers, data: original });
   }
 });
+
+async function advertisingFixture(page: Page) {
+  await page.route('**/offers/daily-bag', async (route) => {
+    const response = await route.fetch();
+    const html = (await response.text()).replace(
+      /(<script[^>]*id="store-data"[^>]*>)([\s\S]*?)(<\/script>)/,
+      (_, start, json, end) => {
+        const data = JSON.parse(json);
+        Object.assign(data.settings, {
+          facebookPixel: '',
+          facebookPixels: [],
+          tiktokPixel: 'TESTTIKTOK123',
+          googleId: 'G-TEST123',
+          googleAdsId: 'AW-123456789',
+          googleAdsLeadLabel: 'Label_Test-123',
+          trackingEnabled: true,
+        });
+        return start + JSON.stringify(data).replace(/</g, '\\u003c') + end;
+      },
+    );
+    await route.fulfill({ response, body: html });
+  });
+  await page.route(/https:\/\/(analytics\.tiktok\.com|www\.googletagmanager\.com)\//, (route) =>
+    route.fulfill({ body: '', contentType: 'application/javascript' }),
+  );
+}
+async function customerFixture(page: Page) {
+  await page.locator('[name=name]').fill('Local advertising fixture');
+  await page.locator('[name=phone]').fill('0612345678');
+  await page.locator('[name=city]').fill('Rabat');
+  await page.locator('[name=address]').fill('Local test address');
+}
+test('Google Ads and TikTok emit a deduplicated Lead only after a successful order, with GA4 kept separate', async ({
+  page,
+}) => {
+  await advertisingFixture(page);
+  let posts = 0;
+  await page.route('**/api/orders', (route) => {
+    posts++;
+    return posts === 1
+      ? route.fulfill({
+          status: 400,
+          json: { error: 'fixture_failure', message: 'Fixture failure' },
+        })
+      : route.fulfill({ status: 201, json: { ref: 'REF-ADS-FIXTURE' } });
+  });
+  await page.goto('/offers/daily-bag');
+  await customerFixture(page);
+  const events = () =>
+    page.evaluate(() => ({
+      google: ((window as any).dataLayer || []).map((x: any) => Array.from(x)),
+      tiktok: Array.from((window as any).ttq || []) as any[][],
+    }));
+  const initial = await events();
+  expect(initial.google.filter((e: any) => e[0] === 'config').map((e: any) => e[1])).toEqual([
+    'G-TEST123',
+    'AW-123456789',
+  ]);
+  expect(initial.google.filter((e: any) => e[0] === 'js')).toHaveLength(1);
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#checkout-error')).toContainText('Fixture failure');
+  expect((await events()).google.filter((e: any) => e[1] === 'conversion')).toHaveLength(0);
+  expect((await events()).tiktok.filter((e: any) => e[1] === 'Lead')).toHaveLength(0);
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#thanks-dialog')).toBeVisible();
+  const saved = await events();
+  const conversions = saved.google.filter((e: any) => e[0] === 'event' && e[1] === 'conversion');
+  expect(conversions).toHaveLength(1);
+  expect(conversions[0][2]).toMatchObject({
+    send_to: 'AW-123456789/Label_Test-123',
+    transaction_id: 'REF-ADS-FIXTURE',
+    currency: 'MAD',
+    value: 179,
+  });
+  expect(saved.google.find((e: any) => e[1] === 'generate_lead')?.[2]).toMatchObject({
+    send_to: 'G-TEST123',
+    value: 179,
+  });
+  const leads = saved.tiktok.filter((e: any) => e[0] === 'track' && e[1] === 'Lead');
+  expect(leads).toHaveLength(1);
+  expect(leads[0][2]).toMatchObject({ value: 179, currency: 'MAD' });
+  expect(leads[0][3]).toEqual({ event_id: 'lead:REF-ADS-FIXTURE' });
+  expect(saved.tiktok.some((e: any) => e[1] === 'Purchase')).toBe(false);
+  // A repeated success callback for the same accepted reference must not double-count it.
+  await page.keyboard.press('Escape');
+  await customerFixture(page);
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#thanks-dialog')).toBeVisible();
+  expect((await events()).google.filter((e: any) => e[1] === 'conversion')).toHaveLength(1);
+});
+
+test('unavailable browser storage and throwing advertising SDKs cannot hide successful checkout', async ({
+  page,
+}) => {
+  await advertisingFixture(page);
+  await page.addInitScript(() => {
+    const blocked = () => {
+      throw new DOMException('Storage blocked', 'SecurityError');
+    };
+    for (const name of ['getItem', 'setItem', 'removeItem'])
+      Object.defineProperty(Storage.prototype, name, { value: blocked, configurable: true });
+  });
+  await page.route('**/api/orders', (r) =>
+    r.fulfill({ status: 201, json: { ref: 'REF-BLOCKED-STORAGE' } }),
+  );
+  await page.goto('/offers/daily-bag');
+  await page.evaluate(() => {
+    for (const name of ['fbq', 'gtag', 'snaptr'])
+      (window as any)[name] = () => {
+        throw Error('SDK blocked');
+      };
+    (window as any).ttq.track = () => {
+      throw Error('SDK blocked');
+    };
+  });
+  await customerFixture(page);
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#thanks-dialog')).toBeVisible();
+  await expect(page.locator('#order-ref')).toHaveText('REF-BLOCKED-STORAGE');
+  await expect(page.locator('#checkout-error')).toHaveText('');
+});
+
+test('CSP allows Google Ads transports and the TikTok IPv6 endpoint', async ({ page }) => {
+  const urls = [
+    'https://www.googleadservices.com/pagead/conversion/123',
+    'https://googleads.g.doubleclick.net/pagead/viewthroughconversion/123',
+    'https://www.googletagmanager.com/test',
+    'https://anlytics-ipv6.tiktokw.us/test',
+  ];
+  for (const url of urls)
+    await page.route(url, (r) =>
+      r.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, body: 'ok' }),
+    );
+  await page.goto('/');
+  for (const url of urls)
+    expect(
+      await page.evaluate(
+        (url) =>
+          fetch(url)
+            .then((r) => r.ok)
+            .catch(() => false),
+        url,
+      ),
+    ).toBe(true);
+});
+
+test('checkout reuses a current quote but refreshes an authoritative price rejection before retrying', async ({
+  page,
+}) => {
+  let quotes = 0,
+    posts = 0;
+  await page.route('**/api/checkout/quote', async (route) => {
+    quotes++;
+    const response = await route.fetch();
+    await route.fulfill({ response });
+  });
+  await page.route('**/api/orders', (route) => {
+    posts++;
+    return posts === 1
+      ? route.fulfill({
+          status: 409,
+          json: { error: 'quote_changed', message: 'Review updated total' },
+        })
+      : route.fulfill({ status: 201, json: { ref: 'REF-QUOTE-CACHE' } });
+  });
+  await page.goto('/offers/daily-bag');
+  await customerFixture(page);
+  const cityQuote = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/api/checkout/quote') && r.request().postDataJSON().city === 'CASABLANCA',
+  );
+  await page.locator('[name=city]').fill('CASABLANCA');
+  await cityQuote;
+  await expect(page.locator('#shipping')).toContainText('20');
+  const current = quotes;
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#checkout-error')).toHaveText('Review updated total');
+  expect(quotes).toBe(current + 1); // Only the post-rejection refresh, no duplicate pre-submit quote.
+  await expect(page.locator('#thanks-dialog')).not.toBeVisible();
+  await page.locator('#checkout-form button[type=submit]').click();
+  await expect(page.locator('#thanks-dialog')).toBeVisible();
+  expect(quotes).toBe(current + 1);
+});

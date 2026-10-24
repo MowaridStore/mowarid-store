@@ -350,6 +350,14 @@ const baseSettingsSchema = z
       .default([]),
     tiktokPixel: z.string().regex(/^[a-zA-Z0-9]{0,60}$/),
     googleId: z.string().regex(/^$|^(G|GT|AW)-[A-Z0-9-]{3,40}$/),
+    googleAdsId: z
+      .string()
+      .regex(/^$|^AW-\d{3,30}$/)
+      .default(''),
+    googleAdsLeadLabel: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{0,100}$/)
+      .default(''),
     snapPixel: z.string().regex(/^[a-zA-Z0-9-]{0,60}$/),
     trackingEnabled: z.boolean(),
     turnstileSiteKey: text(100),

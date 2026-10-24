@@ -5734,5 +5734,25 @@
   "احفظ معرّف البكسل أولًا.": {
     "en": "Save the pixel ID first.",
     "fr": "Enregistrez d’abord l’ID du pixel."
+  },
+  "أدخل معرّف البكسل من TikTok Events Manager. نسجّل الزيارات ومشاهدة المنتجات وبدء إتمام الطلب وLead بعد حفظ الطلب بنجاح.": {
+    "en": "Enter the pixel ID from TikTok Events Manager. We track visits, product views, checkout starts and Lead after the order is saved successfully.",
+    "fr": "Saisissez l’identifiant du pixel depuis TikTok Events Manager. Nous suivons les visites, les vues produit, les débuts de commande et Lead après l’enregistrement réussi de la commande."
+  },
+  "معرّف تحويل Google Ads (AW-)": {
+    "en": "Google Ads conversion ID (AW-)",
+    "fr": "Identifiant de conversion Google Ads (AW-)"
+  },
+  "تصنيف تحويل الطلب (Conversion Label)": {
+    "en": "Order conversion label (Conversion Label)",
+    "fr": "Libellé de conversion de commande (Conversion Label)"
+  },
+  "انسخ المعرّف والتصنيف من إعداد تحويل الموقع في Google Ads. يُرسل التحويل بعد حفظ الطلب فقط، ويعني طلبًا مسجّلًا وليس بيعًا موصلًا. يمكنك إبقاء GA4 مفعّلًا معه.": {
+    "en": "Copy the ID and label from the website conversion setup in Google Ads. A conversion is sent only after saving an order; it represents a registered order, not a delivered sale. GA4 can remain enabled alongside it.",
+    "fr": "Copiez l’identifiant et le libellé depuis la configuration de conversion du site dans Google Ads. La conversion est envoyée uniquement après l’enregistrement d’une commande ; elle représente une commande enregistrée et non une vente livrée. GA4 peut rester activé en parallèle."
+  },
+  "المنتجات المتاحة للاختيار في الصفحة العادية والهبوط": {
+    "en": "Product choices on the regular and landing pages",
+    "fr": "Choix de produits sur la page classique et la page de destination"
   }
 }

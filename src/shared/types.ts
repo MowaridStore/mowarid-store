@@ -319,6 +319,8 @@ export type Settings = {
   facebookAdditionalPixels: { id: string; pixel: string; label: string; enabled: boolean }[];
   tiktokPixel: string;
   googleId: string;
+  googleAdsId: string;
+  googleAdsLeadLabel: string;
   snapPixel: string;
   trackingEnabled: boolean;
   turnstileSiteKey: string;
@@ -426,6 +428,8 @@ export const defaults: Settings = {
   facebookAdditionalPixels: [],
   tiktokPixel: '',
   googleId: '',
+  googleAdsId: '',
+  googleAdsLeadLabel: '',
   snapPixel: '',
   trackingEnabled: false,
   turnstileSiteKey: '',

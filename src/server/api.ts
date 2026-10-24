@@ -146,20 +146,16 @@ async function makeQuote(
         contract.keyFingerprint !== (await digest(await credential(env, 'mowarid')))))
   )
     throw new DomainError('supplier_contract_missing', 'لم يُتحقق من عقد مورد الإنتاجي بعد.', 503);
-  const ps = await cartProducts(
+  const [ps, s, knownCities, maximum] = await Promise.all([
+    cartProducts(
       env.DB,
       cart.map((l) => l.productId),
     ),
-    s = await settings(env.DB);
-  const q = quoteCart(
-    cart,
-    ps,
-    city,
-    s,
-    await cities(env.DB),
-    checkoutMode,
-    await maximumShipping(env),
-  );
+    settings(env.DB),
+    cities(env.DB),
+    maximumShipping(env),
+  ]);
+  const q = quoteCart(cart, ps, city, s, knownCities, checkoutMode, maximum);
   const p = checkoutMode === 'direct' ? ps.find((p) => p.id === cart[0]?.productId) : undefined;
   const value = {
     ...q,
@@ -789,7 +785,9 @@ api.post('/orders', async (c) => {
     throw e;
   }
   if (metaPixels.length) c.executionCtx.waitUntil(flushMetaEvents(c.env).catch(() => {}));
-  if (s.autoConfirm) await dispatchSubmission(c.env, id);
+  // Checkout succeeds once the order and its submission outbox commit. The
+  // supplier's network latency must not keep the customer waiting for success.
+  if (s.autoConfirm) c.executionCtx.waitUntil(dispatchSubmission(c.env, id));
   return c.json({ ref }, 201);
 });
 api.post('/visits', async (c) => {
@@ -1263,6 +1261,8 @@ api.put('/admin/settings', async (c) => {
   if (!Object.hasOwn(body, 'productInfo')) s.productInfo = old.productInfo;
   if (!Object.hasOwn(body, 'branding')) s.branding = old.branding;
   if (!Object.hasOwn(body, 'typography')) s.typography = old.typography;
+  if (!Object.hasOwn(body, 'googleAdsId')) s.googleAdsId = old.googleAdsId;
+  if (!Object.hasOwn(body, 'googleAdsLeadLabel')) s.googleAdsLeadLabel = old.googleAdsLeadLabel;
   if (!Object.hasOwn(body, 'facebookAdditionalPixels')) {
     s.facebookAdditionalPixels = old.facebookAdditionalPixels;
     settingsSchema.parse(s);
@@ -1323,7 +1323,13 @@ api.put('/admin/settings', async (c) => {
   }
   s.checkoutOffers = [];
   s.contractVerified = old.contractVerified && s.supplierField === old.supplierField;
-  s.trackingEnabled = !!(metaPixelIds(s).length || s.tiktokPixel || s.googleId || s.snapPixel);
+  s.trackingEnabled = !!(
+    metaPixelIds(s).length ||
+    s.tiktokPixel ||
+    s.googleId ||
+    s.googleAdsId ||
+    s.snapPixel
+  );
   const stmts = [
     c.env.DB.prepare(
       'INSERT INTO settings VALUES(1,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json',

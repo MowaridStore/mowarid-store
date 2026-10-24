@@ -129,6 +129,8 @@ export function Layout({
     facebookPixels: metaPixelIds(s),
     tiktokPixel: s.tiktokPixel,
     googleId: s.googleId,
+    googleAdsId: s.googleAdsId,
+    googleAdsLeadLabel: s.googleAdsLeadLabel,
     snapPixel: s.snapPixel,
     trackingEnabled: s.trackingEnabled,
     turnstileSiteKey: s.turnstileSiteKey,
@@ -143,9 +145,8 @@ export function Layout({
     direct,
     checkout,
     productId: product?.id,
-    landingProductIds:
-      landing && product ? landingProducts(product, products).map((p) => p.id) : undefined,
-    landingPackComponentIds: landing ? product?.presentation?.landingPackComponentIds : undefined,
+    landingProductIds: product ? landingProducts(product, products).map((p) => p.id) : undefined,
+    landingPackComponentIds: product?.presentation?.landingPackComponentIds,
     development,
     searchIds,
   };
@@ -1030,12 +1031,15 @@ export function ProductPage({
           {originalPrice > p.price && p.presentation?.promotion?.endsAt && (
             <PromotionCard p={p} s={s} originalPrice={originalPrice} />
           )}
-          {(!!p.offers.length || !!p.presentation?.bundleMode) && (
-            <div class="product-offers">
-              <h2>{t('اختر ما يناسبك')}</h2>
-              <OfferChoices p={p} s={s} />
-            </div>
-          )}
+          <ProductChoices p={p} choices={recommendations} s={s} />
+          <div
+            class="product-offers"
+            data-product-offers
+            hidden={!p.offers.length && !p.presentation?.bundleMode}
+          >
+            <h2>{t('اختر ما يناسبك')}</h2>
+            <OfferChoices p={p} s={s} />
+          </div>
           <div class="product-buy" id="product-buy">
             <div
               class="product-quantity"
@@ -1149,7 +1153,7 @@ export function ProductPage({
         <div>
           {p.image && <img src={p.image} alt="" width="48" height="48" />}
           <span>
-            <b>{p.name}</b>
+            <b data-purchase-name>{p.name}</b>
             <strong data-product-price>{money(p.price)}</strong>
             {originalPrice > p.price && (
               <>
@@ -1181,6 +1185,48 @@ export function ProductPage({
     </main>
   );
 }
+function ProductChoices({ p, choices, s }: { p: Product; choices: Product[]; s: Settings }) {
+  const alternatives = landingProducts(p, choices);
+  if (alternatives.length < 2) return null;
+  const packSavings = landingPackSavings(p, choices);
+  const t = storeTranslator(s),
+    money = localizedMoney(s);
+  return (
+    <fieldset class="landing-product-choices" data-landing-products>
+      <legend>{t('اختر المنتج الذي تريد طلبه')}</legend>
+      <div class="offer-choices">
+        {alternatives.map((choice) => {
+          const item = pricedProduct(localizedProduct(choice, s.storeLanguage));
+          return (
+            <label class="offer-card landing-product-choice">
+              <input
+                type="radio"
+                name="landing-product"
+                value={item.id}
+                checked={item.id === p?.id}
+                disabled={!item.active || !item.verified || !item.supplier || item.stock < 1}
+              />
+              {item.image && <img src={item.image} alt="" width="56" height="56" loading="lazy" />}
+              <span>
+                <b>{item.name}</b>
+                {item.id === p?.id &&
+                  (p.presentation?.landingPackComponentIds?.length || 0) >= 2 && (
+                    <small data-pack-savings hidden={packSavings <= 0}>
+                      {t('توفير {amount} مقارنة بشراء المكونات منفصلة', {
+                        amount: money(packSavings),
+                      })}
+                    </small>
+                  )}
+              </span>
+              <strong data-choice-price={item.id}>{money(item.price)}</strong>
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 export function OrderForm({
   choices = [],
   p,
@@ -1204,8 +1250,6 @@ export function OrderForm({
   const formDefault = localizedForm(s);
   const f = localizedForm(s, content);
   const appearance = p?.pageMode === 'landing' ? landingFormAppearance(p, s) : null;
-  const alternatives = p?.pageMode === 'landing' ? landingProducts(p, choices) : [];
-  const packSavings = p ? landingPackSavings(p, choices) : 0;
   const badgeText = landingBadgeText(p, content, s);
   return (
     <section
@@ -1254,42 +1298,7 @@ export function OrderForm({
         </div>
         {badgeText.trim() && <span class="cod-badge">{badgeText}</span>}
       </div>
-      {alternatives.length > 1 && (
-        <fieldset class="landing-product-choices" data-landing-products>
-          <legend>{t('اختر المنتج الذي تريد طلبه')}</legend>
-          <div class="offer-choices">
-            {alternatives.map((choice) => {
-              const item = pricedProduct(localizedProduct(choice, s.storeLanguage));
-              return (
-                <label class="offer-card landing-product-choice">
-                  <input
-                    type="radio"
-                    name="landing-product"
-                    value={item.id}
-                    checked={item.id === p?.id}
-                    disabled={!item.active || !item.verified || !item.supplier || item.stock < 1}
-                  />
-                  {item.image && (
-                    <img src={item.image} alt="" width="56" height="56" loading="lazy" />
-                  )}
-                  <span>
-                    <b>{item.name}</b>
-                    {item.id === p?.id &&
-                      (p.presentation?.landingPackComponentIds?.length || 0) >= 2 && (
-                        <small data-pack-savings hidden={packSavings <= 0}>
-                          {t('توفير {amount} مقارنة بشراء المكونات منفصلة', {
-                            amount: money(packSavings),
-                          })}
-                        </small>
-                      )}
-                  </span>
-                  <strong data-choice-price={item.id}>{money(item.price)}</strong>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-      )}
+      {p && <ProductChoices p={p} choices={choices} s={s} />}
       {p && !direct && (
         <div class="offer-options">
           <OfferChoices p={p} s={s} />

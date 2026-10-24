@@ -15,6 +15,8 @@ const setupToken = 'production-setup-test-only';
 let bootstrapCookie = '';
 let submissionFixture = false;
 let rejectSubmission = false;
+let holdSubmission = false;
+let releaseSubmission: (() => void) | undefined;
 let releaseTracking: (() => void) | undefined;
 let trackingStarted: (() => void) | undefined;
 const submissionCalls: string[] = [];
@@ -95,8 +97,13 @@ beforeAll(async () => {
               shipping_label_issued: false,
             },
           });
-        if (url.pathname === '/api/v1/orders' && request.method === 'POST')
+        if (url.pathname === '/api/v1/orders' && request.method === 'POST') {
+          if (holdSubmission)
+            await new Promise<void>((resolve) => {
+              releaseSubmission = resolve;
+            });
           if (rejectSubmission) return Response.json({ success: false }, { status: 500 });
+        }
         if (url.pathname === '/api/v1/orders' && request.method === 'POST')
           return Response.json({
             success: true,
@@ -346,17 +353,44 @@ describe('real deployment runtime', () => {
           idempotency: crypto.randomUUID(),
           turnstileToken: 'runtime-order-token',
         });
-      const automatic = await place();
-      expect(automatic.status).toBe(201);
-      const automaticRef = ((await automatic.json()) as any).ref;
+      holdSubmission = true;
+      const automatic = await Promise.race([
+        place(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+      ]);
       expect(
-        (
-          await db
-            .prepare('SELECT sync_status FROM orders WHERE ref=?')
-            .bind(automaticRef)
-            .first<any>()
-        )?.sync_status,
-      ).toBe('sent');
+        automatic,
+        'a saved checkout must respond while the supplier is still stalled',
+      ).not.toBeNull();
+      expect(automatic!.status).toBe(201);
+      const automaticRef = ((await automatic!.json()) as any).ref;
+      await expect
+        .poll(() => submissionCalls.filter((call) => call === 'POST /api/v1/orders').length)
+        .toBe(1);
+      const inFlight = await db
+        .prepare('SELECT id,sync_status,mowarid_id FROM orders WHERE ref=?')
+        .bind(automaticRef)
+        .first<any>();
+      expect(inFlight).toMatchObject({ sync_status: 'sending', mowarid_id: null });
+      expect(
+        await db
+          .prepare("SELECT status FROM jobs WHERE order_id=? AND type='submit'")
+          .bind(inFlight.id)
+          .first(),
+      ).toMatchObject({ status: 'running' });
+      holdSubmission = false;
+      releaseSubmission?.();
+      await expect
+        .poll(
+          async () =>
+            (
+              await db
+                .prepare('SELECT sync_status FROM orders WHERE ref=?')
+                .bind(automaticRef)
+                .first<any>()
+            )?.sync_status,
+        )
+        .toBe('sent');
       expect(submissionCalls.filter((call) => call === 'POST /api/v1/orders')).toHaveLength(1);
       await db
         .prepare('UPDATE settings SET json=? WHERE id=1')
@@ -399,6 +433,17 @@ describe('real deployment runtime', () => {
       const failed = await place();
       expect(failed.status).toBe(201);
       const failedRef = ((await failed.json()) as any).ref;
+      await expect
+        .poll(
+          async () =>
+            (
+              await db
+                .prepare('SELECT last_error FROM orders WHERE ref=?')
+                .bind(failedRef)
+                .first<any>()
+            )?.last_error,
+        )
+        .toBe('remote_server_error');
       const pending = await db
         .prepare('SELECT * FROM orders WHERE ref=?')
         .bind(failedRef)
@@ -416,6 +461,9 @@ describe('real deployment runtime', () => {
         ).status,
       ).toBe('pending');
     } finally {
+      holdSubmission = false;
+      releaseSubmission?.();
+      releaseSubmission = undefined;
       releaseTracking?.();
       await trackingRequest;
       submissionFixture = false;

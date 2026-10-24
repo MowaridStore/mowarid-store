@@ -223,3 +223,114 @@ test('a sole published landing renders its complete page at root even when hidde
       ).toBe(true);
   }
 });
+
+test('regular product choices update the actual SKU, cart, stock limit, offer and direct checkout on mobile and desktop', async ({
+  page,
+}) => {
+  const headers = await owner(page);
+  const originals = await (await page.request.get('/api/admin/products')).json();
+  const bag = originals.find((p: any) => p.id === 'demo-bag'),
+    notebook = originals.find((p: any) => p.id === 'demo-notebook'),
+    candle = originals.find((p: any) => p.id === 'demo-candle');
+  try {
+    for (const p of [notebook, candle])
+      expect(
+        (
+          await page.request.put('/api/admin/products/' + p.id, {
+            headers,
+            data: { ...p, storefrontVisible: 0 },
+          })
+        ).ok(),
+      ).toBe(true);
+    expect(
+      (
+        await page.request.put('/api/admin/products/' + bag.id, {
+          headers,
+          data: {
+            ...bag,
+            pageMode: 'product',
+            presentation: {
+              ...bag.presentation,
+              landingProductIds: [notebook.id, candle.id],
+              landingPackComponentIds: [notebook.id, candle.id],
+            },
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    await page.goto('/shop/' + bag.slug);
+    await expect(page.locator('input[name=landing-product]')).toHaveCount(3);
+    await page.locator('input[name=offer][value=bag-two]').check();
+    await page.locator('input[name=landing-product][value=demo-notebook]').check();
+    await expect(page.locator('#product-quantity')).toHaveValue('1');
+    await expect(page.locator('[data-offer-choices] input')).toHaveCount(0);
+    await expect(page.locator('#add-offer')).toHaveAttribute('data-product-id', notebook.id);
+    await expect(page.locator('.product-price-line [data-product-price]')).toContainText('69');
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
+    await page.locator('#add-offer').click();
+    const lines = JSON.parse(
+      (await page.evaluate(() => localStorage.getItem('dar-cart-v1'))) || '[]',
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ productId: notebook.id, quantity: 1 });
+    await page.locator('[data-close-cart]').first().click();
+    await page.locator('input[name=landing-product][value=demo-candle]').check();
+    await expect(page.locator('[data-buy-now]')).toHaveAttribute('data-product-id', candle.id);
+    await page.locator('#buy-now').click();
+    await expect(page).toHaveURL(/\/checkout\?product=demo-candle/);
+    await expect(page.locator('#checkout-items')).toContainText(candle.name);
+    await expect(page.locator('#subtotal')).toContainText('99');
+    expect(
+      JSON.parse((await page.evaluate(() => localStorage.getItem('dar-cart-v1'))) || '[]')[0]
+        .productId,
+    ).toBe(notebook.id);
+  } finally {
+    for (const p of [bag, notebook, candle])
+      expect(
+        (await page.request.put('/api/admin/products/' + p.id, { headers, data: p })).ok(),
+      ).toBe(true);
+  }
+});
+
+test('TikTok and Google Ads settings save independently and legacy settings writes preserve Ads configuration', async ({
+  page,
+}) => {
+  const headers = await owner(page);
+  const original = (await (await page.request.get('/api/admin/settings')).json()).settings;
+  try {
+    await page.goto('/admin/pixels');
+    await page.getByLabel('TikTok Pixel ID', { exact: true }).fill('TESTTIKTOK123');
+    await page.getByLabel('Google Tag / GA4 ID', { exact: true }).fill('G-TEST123');
+    await page.getByLabel('معرّف تحويل Google Ads (AW-)', { exact: true }).fill('AW-123456789');
+    await page
+      .getByLabel('تصنيف تحويل الطلب (Conversion Label)', { exact: true })
+      .fill('Label_Test-123');
+    await page.getByRole('button', { name: 'حفظ الإعدادات', exact: true }).click();
+    await expect(page.getByText('تم حفظ التغييرات.', { exact: true })).toBeVisible();
+    const saved = (await (await page.request.get('/api/admin/settings')).json()).settings;
+    expect(saved).toMatchObject({
+      tiktokPixel: 'TESTTIKTOK123',
+      googleId: 'G-TEST123',
+      googleAdsId: 'AW-123456789',
+      googleAdsLeadLabel: 'Label_Test-123',
+      trackingEnabled: true,
+    });
+    const { googleAdsId, googleAdsLeadLabel, ...legacy } = saved;
+    expect((await page.request.put('/api/admin/settings', { headers, data: legacy })).ok()).toBe(
+      true,
+    );
+    expect((await (await page.request.get('/api/admin/settings')).json()).settings).toMatchObject({
+      googleAdsId,
+      googleAdsLeadLabel,
+    });
+  } finally {
+    expect((await page.request.put('/api/admin/settings', { headers, data: original })).ok()).toBe(
+      true,
+    );
+  }
+});
