@@ -13,6 +13,7 @@
   "docs/MOWARID_WEBHOOKS.md",
   "docs/SECURITY.md",
   "docs/merchant-features.md",
+  "docs/TIKTOK_CASE_STUDY.md",
   "fixtures/demo.sql",
   "migrations/0001_initial.sql",
   "migrations/0002_submission_guard.sql",
